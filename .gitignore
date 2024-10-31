@@ -1,0 +1,43 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build output
+*.out
+
+# Dependency directories (vendor/)
+vendor/
+
+# Environment variable files
+.env
+.env.*
+
+# Logs and debug output
+*.log
+
+# IDE/editor config files
+.vscode/
+.idea/
+*.sublime-workspace
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Module cache
+go.sum
+
+# Build and test caches
+*.test
+*.cache
+
+# Ignore test coverage files
+*.coverprofile
+coverage.out
+
+# Ignore config and sensitive data files
+config.json
+config.yaml
+config.toml
