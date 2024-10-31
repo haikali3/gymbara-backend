@@ -1,10 +1,12 @@
 package main
 
 import (
-	"github.com/haikali3/gymbara-backend/database"
-	"github.com/haikali3/gymbara-backend/routes"
 	"log"
 	"net/http"
+
+	"github.com/haikali3/gymbara-backend/config"
+	"github.com/haikali3/gymbara-backend/database"
+	"github.com/haikali3/gymbara-backend/routes"
 
 	"github.com/joho/godotenv"
 )
@@ -15,7 +17,10 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	database.Connect()
+	cfg := config.LoadConfig() // Load configuration
+
+	database.Connect(cfg) // Pass config to database connection function
+
 	routes.RegisterRoutes()
 
 	log.Println("Starting server on :8080...")
