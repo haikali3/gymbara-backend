@@ -9,18 +9,25 @@ import (
 	"github.com/haikali3/gymbara-backend/models"
 )
 
-/*
-	{
-		"id": 24,
-		"name": "Incline Machine Press",
-		"warmup_sets": 1,
-		"work_sets": 2,
-		"reps": "8-10",
-		"load": 0,
-		"rpe": "9-10",
-		"rest_time": "~2 MINS"
-	},
-*/
+// helper
+func writeJSONResponse(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Unable to encode response", http.StatusInternalServerError)
+		log.Println("JSON encoding error:", err)
+	}
+}
+
+// helper
+func handleError(w http.ResponseWriter, msg string, status int, err error) {
+	http.Error(w, msg, status)
+	if err != nil {
+		log.Println(msg, err)
+	}
+}
+
+// get all
 func GetExercises(w http.ResponseWriter, r *http.Request) {
 	rows, err := database.DB.Query(`
         SELECT ed.id, e.name AS ExerciseName, ed.warmup_sets, ed.working_sets, ed.reps, ed.load, ed.rpe, ed.rest_time
@@ -44,15 +51,11 @@ func GetExercises(w http.ResponseWriter, r *http.Request) {
 		}
 		exercises = append(exercises, ex)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(exercises); err != nil {
-		http.Error(w, "Unable to encode response", http.StatusInternalServerError)
-		log.Println("JSON encoding error:", err)
-	}
+	writeJSONResponse(w, http.StatusOK, exercises)
 }
 
-func GetWorkoutSections(w http.ResponseWriter, r *http.Request) { //upper lower full
+// upper lower full
+func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 	rows, err := database.DB.Query("SELECT id, name FROM WorkoutSections")
 	if err != nil {
 		http.Error(w, "Unable to query workout sections", http.StatusInternalServerError)
@@ -71,8 +74,7 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) { //upper lower 
 		}
 		workoutSections = append(workoutSections, workoutSection)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(workoutSections)
+	writeJSONResponse(w, http.StatusOK, workoutSections)
 }
 
 // this func is only for initial load of exercises.
@@ -107,8 +109,7 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 		}
 		exerciseDetails = append(exerciseDetails, detail)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(exerciseDetails)
+	writeJSONResponse(w, http.StatusOK, exerciseDetails)
 }
 
 // detail exercise
@@ -143,7 +144,5 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		}
 		exerciseDetails = append(exerciseDetails, detail)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(exerciseDetails)
+	writeJSONResponse(w, http.StatusOK, exerciseDetails)
 }
