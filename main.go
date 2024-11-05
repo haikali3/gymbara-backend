@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	oauth "github.com/haikali3/gymbara-backend/auth"
 	"github.com/haikali3/gymbara-backend/config"
 	"github.com/haikali3/gymbara-backend/database"
 	"github.com/haikali3/gymbara-backend/routes"
@@ -24,5 +25,8 @@ func main() {
 	routes.RegisterRoutes()
 
 	log.Println("Starting server on :8080...")
+	http.HandleFunc("/oauth/login", oauth.GoogleLoginHandler)
+	http.HandleFunc("/oauth/callback", oauth.GoogleCallbackHandler)
+
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
