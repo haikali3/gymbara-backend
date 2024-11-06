@@ -123,7 +123,8 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 	})
 	//redirect user to homepage
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "http://localhost:3000", http.StatusSeeOther)
+	// !!! later replace with proper url
 }
 
 func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -136,5 +137,6 @@ func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Redirect to homepage or login page after logout
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "http://localhost:3000", http.StatusSeeOther)
+	// !!! later replace with proper url
 }
