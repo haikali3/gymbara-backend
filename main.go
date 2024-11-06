@@ -1,10 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 
-	oauth "github.com/haikali3/gymbara-backend/auth"
 	"github.com/haikali3/gymbara-backend/config"
 	"github.com/haikali3/gymbara-backend/database"
 	"github.com/haikali3/gymbara-backend/routes"
@@ -24,9 +25,10 @@ func main() {
 
 	routes.RegisterRoutes()
 
-	log.Println("Starting server on :8080...")
-	http.HandleFunc("/oauth/login", oauth.GoogleLoginHandler)
-	http.HandleFunc("/oauth/callback", oauth.GoogleCallbackHandler)
+	fmt.Println("GOOGLE_CLIENT_ID:", os.Getenv("GOOGLE_CLIENT_ID"))
+	fmt.Println("GOOGLE_CLIENT_SECRET:", os.Getenv("GOOGLE_CLIENT_SECRET"))
 
+	log.Println("Starting server on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+
 }
