@@ -13,16 +13,45 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+func loadEnv() {
+	// Set default to "development" if APP_ENV is not set
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "development"
+		os.Setenv("APP_ENV", env) // Optional: Set it so the program knows it's in "development"
 	}
 
-	cfg := config.LoadConfig() // Load configuration
+	var envFile string
+	if env == "production" {
+		envFile = ".env.production"
+	} else {
+		envFile = ".env.development"
+	}
+
+	log.Printf("Loading environment: %s from file: %s\n", env, envFile)
+
+	err := godotenv.Load(envFile)
+	if err != nil {
+		log.Fatalf("Error loading %s file", envFile)
+	}
+
+	fmt.Println("Environment:", os.Getenv("APP_ENV"))
+	fmt.Println("BACKEND_BASE_URL:", os.Getenv("BACKEND_BASE_URL"))
+	fmt.Println("FRONTEND_URL:", os.Getenv("FRONTEND_URL"))
+
+}
+
+func main() {
+	loadEnv() //check if dev or prod .env
+
+	cfg := config.LoadConfig()
+
+	// Print the loaded configuration for verification
+	fmt.Printf("Environment: %s\n", os.Getenv("APP_ENV"))
+	fmt.Printf("DBHost: %s\n", cfg.DBHost)
+	fmt.Printf("ServerPort: %s\n", cfg.ServerPort)
 
 	database.Connect(cfg) // Pass config to database connection function
-
 	routes.RegisterRoutes()
 
 	fmt.Println("GOOGLE_CLIENT_ID:", os.Getenv("GOOGLE_CLIENT_ID"))

@@ -18,9 +18,16 @@ import (
 
 // config for google OAuth2
 var GoogleOauthConfig = &oauth2.Config{
-	RedirectURL: "http://localhost:8080/oauth/callback",
-	Scopes:      []string{"https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"},
-	Endpoint:    google.Endpoint,
+	// Dynamic URL based on environment
+	RedirectURL: fmt.Sprintf("%s/oauth/callback", os.Getenv("BACKEND_BASE_URL")),
+	// RedirectURL: os.Getenv("BACKEND_BASE_URL") + "/oauth/callback", // Ensure BACKEND_BASE_URL is set correctly
+	Scopes:   []string{"https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"},
+	Endpoint: google.Endpoint,
+}
+
+// Helper
+func getFrontendURL() string {
+	return os.Getenv("FRONTEND_URL")
 }
 
 // security to prevent CSRF attacks
@@ -43,13 +50,14 @@ func GenerateStateOAuthCookie(w http.ResponseWriter) string {
 
 // 1. Redirects user to Google login
 func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
+	// Set RedirectURL using the loaded BACKEND_BASE_URL environment variable
+	GoogleOauthConfig.RedirectURL = fmt.Sprintf("%s/oauth/callback", os.Getenv("BACKEND_BASE_URL"))
+
 	// load from .env
 	GoogleOauthConfig.ClientID = os.Getenv("GOOGLE_CLIENT_ID")
 	GoogleOauthConfig.ClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 
-	fmt.Println("Google Client ID (Handler): ", GoogleOauthConfig.ClientID)
-	fmt.Println("Google Client Secret (Handler): ", GoogleOauthConfig.ClientSecret)
-
+	fmt.Println("Redirect URL in OAuth Config (After Initialization):", GoogleOauthConfig.RedirectURL)
 	// generate state, set it in cookie, add it to AuthCodeURL
 	oauthStateString := GenerateStateOAuthCookie(w)
 	url := GoogleOauthConfig.AuthCodeURL(oauthStateString)
@@ -123,8 +131,8 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 	})
 	//redirect user to homepage
-	http.Redirect(w, r, "http://localhost:3000", http.StatusSeeOther)
-	// !!! later replace with proper url
+	// http.Redirect(w, r, "http://localhost:3000", http.StatusSeeOther)
+	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
 }
 
 func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +145,6 @@ func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Redirect to homepage or login page after logout
-	http.Redirect(w, r, "http://localhost:3000", http.StatusSeeOther)
-	// !!! later replace with proper url
+	// http.Redirect(w, r, "http://localhost:3000", http.StatusSeeOther)
+	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
 }
