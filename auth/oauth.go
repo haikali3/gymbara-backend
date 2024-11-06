@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -16,135 +17,162 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-// config for google OAuth2
-var GoogleOauthConfig = &oauth2.Config{
-	// Dynamic URL based on environment
-	RedirectURL: fmt.Sprintf("%s/oauth/callback", os.Getenv("BACKEND_BASE_URL")),
-	// RedirectURL: os.Getenv("BACKEND_BASE_URL") + "/oauth/callback", // Ensure BACKEND_BASE_URL is set correctly
-	Scopes:   []string{"https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"},
-	Endpoint: google.Endpoint,
+// OAuth scopes
+// ! Consent from user is needed
+const (
+	ScopeUserInfoProfile = "https://www.googleapis.com/auth/userinfo.profile"
+	ScopeUserInfoEmail   = "https://www.googleapis.com/auth/userinfo.email"
+)
+
+// GoogleOauthConfig stores OAuth2 configuration
+var GoogleOauthConfig *oauth2.Config
+
+// initializes the OAuth configuration using env variables
+func InitializeOAuthConfig() {
+	backendBaseURL := os.Getenv("BACKEND_BASE_URL")
+	if backendBaseURL == "" {
+		log.Fatal("BACKEND_BASE_URL is not set in the environment variables")
+	}
+
+	GoogleOauthConfig = &oauth2.Config{
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		RedirectURL:  fmt.Sprintf("%s/oauth/callback", backendBaseURL),
+		Scopes:       []string{ScopeUserInfoProfile, ScopeUserInfoEmail},
+		Endpoint:     google.Endpoint,
+	}
+
+	fmt.Printf("OAuth configuration initialized with Redirect URL: %s\n", GoogleOauthConfig.RedirectURL)
 }
 
-// Helper
-func getFrontendURL() string {
-	return os.Getenv("FRONTEND_URL")
-}
-
-// security to prevent CSRF attacks
+// creates a state token to prevent CSRF attacks -> stores it in a cookie
 func GenerateStateOAuthCookie(w http.ResponseWriter) string {
 	b := make([]byte, 16)
-	_, _ = rand.Read(b) //ignore error
+	_, _ = rand.Read(b) // Ignore error
+
 	oauthStateString := base64.URLEncoding.EncodeToString(b)
-
-	fmt.Printf("Generated OAuth state: %s", oauthStateString)
-
 	http.SetCookie(w, &http.Cookie{
-		Name:    "oauthstate",
-		Value:   oauthStateString,
-		Expires: time.Now().Add(24 * time.Hour),
-		Path:    "/", //enable cookie avalable across all paths
+		Name:     "oauthstate",
+		Value:    oauthStateString,
+		Expires:  time.Now().Add(24 * time.Hour),
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
 	})
 
 	return oauthStateString
 }
 
-// 1. Redirects user to Google login
+// redirects the user to Google’s OAuth login
 func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
-	// Set RedirectURL using the loaded BACKEND_BASE_URL environment variable
-	GoogleOauthConfig.RedirectURL = fmt.Sprintf("%s/oauth/callback", os.Getenv("BACKEND_BASE_URL"))
+	if GoogleOauthConfig == nil {
+		InitializeOAuthConfig()
+	}
 
-	// load from .env
-	GoogleOauthConfig.ClientID = os.Getenv("GOOGLE_CLIENT_ID")
-	GoogleOauthConfig.ClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
-
-	fmt.Println("Redirect URL in OAuth Config (After Initialization):", GoogleOauthConfig.RedirectURL)
-	// generate state, set it in cookie, add it to AuthCodeURL
 	oauthStateString := GenerateStateOAuthCookie(w)
-	url := GoogleOauthConfig.AuthCodeURL(oauthStateString)
-	fmt.Println("Redirecting to Google OAuth URL: ", url)
+	authURL := GoogleOauthConfig.AuthCodeURL(oauthStateString)
 
-	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	fmt.Printf("Redirecting to Google OAuth URL: %s\n", authURL)
+	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
 
-// 2. Handles Google OAuth callback and processes user info
+// handles Google OAuth callback and stores user info
 func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	//check csrf with state param
-	stateCookie, err := r.Cookie("oauthstate")
-	if err != nil || r.FormValue("state") != stateCookie.Value {
-		fmt.Println("Invalid OAuth state or cookie mismatch: \n", err)
-		http.Error(w, "Invalid OAuth state cookie %v\n", http.StatusBadRequest)
+	if !validateOAuthState(r) {
+		http.Error(w, "Invalid OAuth state", http.StatusBadRequest)
 		return
 	}
-	fmt.Println("OAuth State received: ", stateCookie.Value)
 
-	//exchange auth code for access token
 	token, err := GoogleOauthConfig.Exchange(context.Background(), r.FormValue("code"))
 	if err != nil {
-		fmt.Println("Error exchanging code for token: \n", err)
-		http.Error(w, "Could not get token %v\n", http.StatusInternalServerError)
+		log.Printf("Error exchanging code for token: %v\n", err)
+		http.Error(w, "Could not get token", http.StatusInternalServerError)
 		return
 	}
-	fmt.Printf("Access Token: %s\n", token.AccessToken)
 
-	// get user info from google
-	client := GoogleOauthConfig.Client(context.Background(), token)
+	userInfo, err := fetchUserInfo(context.Background(), token)
+	if err != nil {
+		log.Printf("Error fetching user info: %v\n", err)
+		http.Error(w, "Failed to fetch user info", http.StatusInternalServerError)
+		return
+	}
+
+	if err := storeUserAndSetSession(w, userInfo); err != nil {
+		log.Printf("Error storing user in DB: %v\n", err)
+		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
+}
+
+// retrieves the user's info from Google
+func fetchUserInfo(ctx context.Context, token *oauth2.Token) (models.GoogleUser, error) {
+	client := GoogleOauthConfig.Client(ctx, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		fmt.Println("Error fetching user info: \n", err)
-		http.Error(w, "Failed to fetch user info \n", http.StatusInternalServerError)
-		return
+		return models.GoogleUser{}, fmt.Errorf("error fetching user info: %v", err)
 	}
 	defer resp.Body.Close()
 
-	// Decode user info into struct
-	var googleUser models.GoogleUser
-	if err := json.NewDecoder(resp.Body).Decode(&googleUser); err != nil {
-		fmt.Println("Error decoding use info: ", err)
-		http.Error(w, "Could not parse user info", http.StatusInternalServerError)
-		return
+	var userInfo models.GoogleUser
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return models.GoogleUser{}, fmt.Errorf("error decoding user info: %v", err)
 	}
 
-	fmt.Printf("User Info: %+v\n", googleUser)
+	return userInfo, nil
+}
 
-	// store/update user info in db
-	userID, err := database.StoreUserInDB(googleUser, "google")
+// stores the user info in the db and sets a session cookie
+func storeUserAndSetSession(w http.ResponseWriter, userInfo models.GoogleUser) error {
+	userID, err := database.StoreUserInDB(userInfo, "google")
 	if err != nil {
-		fmt.Printf("Error storing user in DB: %v\n", err)
-		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
-		return
+		return err
 	}
 
-	// generate session or jwt for persistent login
+	// generate JWT token for persistent login
 	tokenString, err := generateJWT(userID)
 	if err != nil {
-		fmt.Printf("Error storing user in DB: %v\n", err)
-		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("error generating JWT: %v", err)
 	}
 
-	//token == cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    tokenString,
 		Expires:  time.Now().Add(30 * 24 * time.Hour),
 		HttpOnly: true,
+		Secure:   true,
 		Path:     "/",
 	})
-	//redirect user to homepage
-	// http.Redirect(w, r, "http://localhost:3000", http.StatusSeeOther)
+
+	return nil
+}
+
+// clears the session cookie and redirects the user to the frontend
+func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth_token",
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+	})
+
 	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
 }
 
-func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
-	// Clear session or token (this depends on how you’re managing sessions)
-	http.SetCookie(w, &http.Cookie{
-		Name:    "session_token",
-		Value:   "",
-		Expires: time.Unix(0, 0), // Expire the cookie immediately
-		Path:    "/",
-	})
+// Helper function to validate OAuth state for CSRF protection
+func validateOAuthState(r *http.Request) bool {
+	stateCookie, err := r.Cookie("oauthstate")
+	if err != nil || r.FormValue("state") != stateCookie.Value {
+		log.Println("Invalid OAuth state or cookie mismatch:", err)
+		return false
+	}
+	return true
+}
 
-	// Redirect to homepage or login page after logout
-	// http.Redirect(w, r, "http://localhost:3000", http.StatusSeeOther)
-	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
+// Helper function to get frontend URL from environment variables
+func getFrontendURL() string {
+	return os.Getenv("FRONTEND_URL")
 }
