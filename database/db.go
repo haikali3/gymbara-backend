@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/haikali3/gymbara-backend/config"
+	"github.com/haikali3/gymbara-backend/models"
 	_ "github.com/lib/pq"
 )
 
@@ -23,7 +24,6 @@ func Connect(cfg *config.Config) {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Set database connection pool limits
 	DB.SetMaxOpenConns(25)
 	DB.SetMaxIdleConns(5)
 	DB.SetConnMaxLifetime(5 * time.Minute)
@@ -33,4 +33,23 @@ func Connect(cfg *config.Config) {
 	}
 
 	log.Println("Database connected successfully.")
+}
+
+// StoreUserInDB inserts or updates a user in the database
+func StoreUserInDB(user models.GoogleUser, provider string) (int, error) {
+	var userID int
+	query := `
+			INSERT INTO Users (username, email, oauth_provider, oauth_id)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (email) DO UPDATE
+			SET username = EXCLUDED.username
+			RETURNING id
+	`
+	err := DB.QueryRow(query, user.Name, user.Email, provider, user.ID).Scan(&userID)
+	if err != nil {
+		log.Println("Error storing user in DB:", err)
+		return 0, err
+	}
+	log.Println("User stored in DB with ID:", userID)
+	return userID, nil
 }
