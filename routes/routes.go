@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"os"
 
 	oauth "github.com/haikali3/gymbara-backend/auth"
 	"github.com/haikali3/gymbara-backend/controllers"
@@ -10,13 +11,15 @@ import (
 // Middleware to handle CORS
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Allow specific origin
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		// Allow specific HTTP methods
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		// Allow specific headers
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
+		//get frontend url from env variable
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:3000" // Fallback to localhost if not set
+		}
+		w.Header().Set("Access-Control-Allow-Origin", frontendURL)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		// If it's a preflight request, return without processing further
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

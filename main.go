@@ -14,11 +14,11 @@ import (
 )
 
 func loadEnv() {
-	// Set default to "development" if APP_ENV is not set
+	// default "development"
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "development"
-		os.Setenv("APP_ENV", env) // Optional: Set it so the program knows it's in "development"
+		os.Setenv("APP_ENV", env)
 	}
 
 	var envFile string
@@ -38,6 +38,8 @@ func loadEnv() {
 	fmt.Println("Environment:", os.Getenv("APP_ENV"))
 	fmt.Println("BACKEND_BASE_URL:", os.Getenv("BACKEND_BASE_URL"))
 	fmt.Println("FRONTEND_URL:", os.Getenv("FRONTEND_URL"))
+	fmt.Println("GOOGLE_CLIENT_ID:", os.Getenv("GOOGLE_CLIENT_ID"))
+	fmt.Println("GOOGLE_CLIENT_SECRET:", os.Getenv("GOOGLE_CLIENT_SECRET"))
 
 }
 
@@ -53,9 +55,6 @@ func main() {
 
 	database.Connect(cfg) // Pass config to database connection function
 	routes.RegisterRoutes()
-
-	fmt.Println("GOOGLE_CLIENT_ID:", os.Getenv("GOOGLE_CLIENT_ID"))
-	fmt.Println("GOOGLE_CLIENT_SECRET:", os.Getenv("GOOGLE_CLIENT_SECRET"))
 
 	log.Println("Starting server on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))

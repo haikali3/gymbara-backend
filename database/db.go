@@ -53,3 +53,20 @@ func StoreUserInDB(user models.GoogleUser, provider string) (int, error) {
 	log.Println("User stored in DB with ID:", userID)
 	return userID, nil
 }
+
+func GetUserByID(userID int) (models.GoogleUser, error) {
+	var user models.GoogleUser
+	query := `
+			SELECT id, email, name, picture
+			FROM Users
+			WHERE id = $1
+	`
+	row := DB.QueryRow(query, userID)
+	err := row.Scan(&user.ID, &user.Email, &user.Name, &user.Picture)
+	if err == sql.ErrNoRows {
+		return user, fmt.Errorf("no user found with ID %d", userID)
+	} else if err != nil {
+		return user, fmt.Errorf("error querying user: %v", err)
+	}
+	return user, nil
+}

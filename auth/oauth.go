@@ -1,3 +1,4 @@
+// REFER https://www.reddit.com/r/golang/comments/10sqggb/how_to_implement_oauth_in_go/
 package auth
 
 import (
@@ -100,30 +101,40 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//store user info in db
+	//store user info in db and get userID
 	if err := storeUserAndSetSession(w, userInfo); err != nil {
 		log.Printf("Error storing user in DB: %v\n", err)
 		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
 		return
 	}
 
-	// Return user details as JSON response
-	// w.Header().Set("Content-Type", "application/json")
-	// if err := json.NewEncoder(w).Encode(userInfo); err != nil {
-	// 	http.Error(w, "Error encoding response", http.StatusInternalServerError)
-	// 	return
-	// }
+	// Store user info in DB and get userID
+	userID, err := database.StoreUserInDB(userInfo, "google")
+	if err != nil {
+		log.Printf("Error storing user in DB: %v\n", err)
+		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
+		return
+	}
 
-	jwtToken, err := generateJWTWithUserDetails(userInfo)
+	//generate jwt with userID valid for 14 days
+	jwtToken, err := generateJWT(userID)
 	if err != nil {
 		log.Printf("Error generating JWT: %v\n", err)
 		http.Error(w, "Error generating JWT", http.StatusInternalServerError)
 		return
 	}
 
-	// Redirect to the frontend with the JWT token as a query parameter -> frontend decode the jwt token to display on frontend
-	redirectURL := fmt.Sprintf("%s?token=%s", getFrontendURL(), jwtToken)
-	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+	//set jwt as http-only cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth_token",
+		Value:    jwtToken,
+		Expires:  time.Now().Add(30 * 24 * time.Hour),
+		HttpOnly: true,
+		Secure:   true, // Set to true if using HTTPS
+		Path:     "/",
+	})
+
+	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
 }
 
 // retrieves the user's info from Google
@@ -180,6 +191,42 @@ func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
+}
+
+func GetUserInfoHandler(w http.ResponseWriter, r *http.Request) {
+	authCookie, err := r.Cookie("auth_token")
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	claims, err := parseJWT(authCookie.Value)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract userID from claims
+	userID, ok := claims["user_id"].(float64) // JWT claims may store numbers as float64
+	if !ok {
+		http.Error(w, "Invalid user ID", http.StatusUnauthorized)
+		return
+	}
+
+	// Fetch user data from the database
+	user, err := database.GetUserByID(int(userID))
+	if err != nil {
+		log.Printf("Error fetching user from database: %v", err)
+		http.Error(w, "User not found", http.StatusInternalServerError)
+		return
+	}
+
+	// Return user data as JSON
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // Helper function to validate OAuth state for CSRF protection
