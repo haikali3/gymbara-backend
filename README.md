@@ -25,7 +25,6 @@ This backend service provides APIs for:
 ```plaintext
 .
 ├── auth/
-│   └── jwt.go             # JWT
 │   └── oauth.go           # oAuth2.0 
 ├── config/
 │   └── config.go          # Environment configuration

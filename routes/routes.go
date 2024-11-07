@@ -43,5 +43,5 @@ func RegisterRoutes() {
 	http.HandleFunc("/oauth/logout", oauth.GoogleLogoutHandler)
 
 	//fetch user details
-	http.HandleFunc("api/user-info", oauth.GetUserInfoHandler)
+	http.HandleFunc("/api/user-info", oauth.GetUserInfoHandler)
 }

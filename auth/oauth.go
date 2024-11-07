@@ -161,7 +161,7 @@ func GetUserInfoHandler(w http.ResponseWriter, r *http.Request) {
 	accessToken := authCookie.Value
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Authorization", "Bearer "+accessToken) //Need access token to call this API
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
