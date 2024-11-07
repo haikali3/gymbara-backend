@@ -54,19 +54,16 @@ func StoreUserInDB(user models.GoogleUser, provider string) (int, error) {
 	return userID, nil
 }
 
-func GetUserByID(userID int) (models.GoogleUser, error) {
-	var user models.GoogleUser
-	query := `
-			SELECT id, email, name, picture
-			FROM Users
-			WHERE id = $1
-	`
-	row := DB.QueryRow(query, userID)
-	err := row.Scan(&user.ID, &user.Email, &user.Name, &user.Picture)
-	if err == sql.ErrNoRows {
-		return user, fmt.Errorf("no user found with ID %d", userID)
-	} else if err != nil {
-		return user, fmt.Errorf("error querying user: %v", err)
-	}
-	return user, nil
+func StoreUserWithToken(user models.GoogleUser, accessToken string) error {
+	//TODO: is it normal for this access token will update current row and also other row for column access token?
+	// im not sure...
+	log.Printf("Updating user: %s with access token: %s", user.Email, accessToken)
+
+	_, err := DB.Exec(`
+			INSERT INTO Users (username, email, oauth_provider, oauth_id, access_token)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (email) DO UPDATE
+			SET username = EXCLUDED.username, access_token = EXCLUDED.access_token
+	`, user.Name, user.Email, "google", user.ID, accessToken)
+	return err
 }

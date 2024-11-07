@@ -49,7 +49,7 @@ func InitializeOAuthConfig() {
 // creates a state token to prevent CSRF attacks -> stores it in a cookie
 func GenerateStateOAuthCookie(w http.ResponseWriter) string {
 	b := make([]byte, 16)
-	_, _ = rand.Read(b) // Ignore error
+	_, _ = rand.Read(b) //ignore error
 
 	oauthStateString := base64.URLEncoding.EncodeToString(b)
 	http.SetCookie(w, &http.Cookie{
@@ -72,7 +72,6 @@ func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	oauthStateString := GenerateStateOAuthCookie(w)
 	authURL := GoogleOauthConfig.AuthCodeURL(oauthStateString)
-
 	fmt.Printf("Redirecting to Google OAuth URL: %s\n", authURL)
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
@@ -101,34 +100,18 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//store user info in db and get userID
-	if err := storeUserAndSetSession(w, userInfo); err != nil {
-		log.Printf("Error storing user in DB: %v\n", err)
-		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
-		return
-	}
-
-	// Store user info in DB and get userID
-	userID, err := database.StoreUserInDB(userInfo, "google")
+	err = database.StoreUserWithToken(userInfo, token.AccessToken)
 	if err != nil {
 		log.Printf("Error storing user in DB: %v\n", err)
 		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
 		return
 	}
 
-	//generate jwt with userID valid for 14 days
-	jwtToken, err := generateJWT(userID)
-	if err != nil {
-		log.Printf("Error generating JWT: %v\n", err)
-		http.Error(w, "Error generating JWT", http.StatusInternalServerError)
-		return
-	}
-
-	//set jwt as http-only cookie
+	// set session cookie with access token
 	http.SetCookie(w, &http.Cookie{
-		Name:     "auth_token",
-		Value:    jwtToken,
-		Expires:  time.Now().Add(30 * 24 * time.Hour),
+		Name:     "access_token",
+		Value:    token.AccessToken,
+		Expires:  time.Now().Add(time.Until(token.Expiry)), // This is more readable
 		HttpOnly: true,
 		Secure:   true, // Set to true if using HTTPS
 		Path:     "/",
@@ -154,31 +137,6 @@ func fetchUserInfo(ctx context.Context, token *oauth2.Token) (models.GoogleUser,
 	return userInfo, nil
 }
 
-// stores the user info in the db and sets a session cookie
-func storeUserAndSetSession(w http.ResponseWriter, userInfo models.GoogleUser) error {
-	userID, err := database.StoreUserInDB(userInfo, "google")
-	if err != nil {
-		return err
-	}
-
-	// generate JWT token for persistent login
-	tokenString, err := generateJWT(userID)
-	if err != nil {
-		return fmt.Errorf("error generating JWT: %v", err)
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth_token",
-		Value:    tokenString,
-		Expires:  time.Now().Add(30 * 24 * time.Hour),
-		HttpOnly: true,
-		Secure:   true,
-		Path:     "/",
-	})
-
-	return nil
-}
-
 // clears the session cookie and redirects the user to the frontend
 func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
@@ -194,39 +152,32 @@ func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUserInfoHandler(w http.ResponseWriter, r *http.Request) {
-	authCookie, err := r.Cookie("auth_token")
+	authCookie, err := r.Cookie("access_token")
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	claims, err := parseJWT(authCookie.Value)
-	if err != nil {
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
-		return
-	}
+	accessToken := authCookie.Value
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	// Extract userID from claims
-	userID, ok := claims["user_id"].(float64) // JWT claims may store numbers as float64
-	if !ok {
-		http.Error(w, "Invalid user ID", http.StatusUnauthorized)
-		return
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		http.Error(w, "Failed to fetch use details from Google", http.StatusInternalServerError)
 	}
+	defer resp.Body.Close()
 
-	// Fetch user data from the database
-	user, err := database.GetUserByID(int(userID))
-	if err != nil {
-		log.Printf("Error fetching user from database: %v", err)
-		http.Error(w, "User not found", http.StatusInternalServerError)
+	var userInfo models.GoogleUser
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		http.Error(w, "Error decoding user info", http.StatusInternalServerError)
 		return
 	}
 
 	// Return user data as JSON
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(user); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-		return
-	}
+	json.NewEncoder(w).Encode(userInfo)
 }
 
 // Helper function to validate OAuth state for CSRF protection
