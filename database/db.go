@@ -35,7 +35,7 @@ func Connect(cfg *config.Config) {
 	log.Println("Database connected successfully.")
 }
 
-// StoreUserInDB inserts or updates a user in the database
+// inserts or updates a user in the database after OAuth2 login
 func StoreUserInDB(user models.GoogleUser, provider string) (int, error) {
 	var userID int
 	query := `

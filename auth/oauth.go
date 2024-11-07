@@ -57,7 +57,7 @@ func GenerateStateOAuthCookie(w http.ResponseWriter) string {
 		Expires:  time.Now().Add(24 * time.Hour),
 		Path:     "/",
 		Secure:   true,
-		HttpOnly: true,
+		HttpOnly: true, // ? change if https?
 	})
 
 	return oauthStateString
@@ -78,11 +78,13 @@ func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 // handles Google OAuth callback and stores user info
 func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	//prevent csrf
 	if !validateOAuthState(r) {
 		http.Error(w, "Invalid OAuth state", http.StatusBadRequest)
 		return
 	}
 
+	//exchg code for token from google's oauth2 server
 	token, err := GoogleOauthConfig.Exchange(context.Background(), r.FormValue("code"))
 	if err != nil {
 		log.Printf("Error exchanging code for token: %v\n", err)
@@ -90,6 +92,7 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//get user info from google's api
 	userInfo, err := fetchUserInfo(context.Background(), token)
 	if err != nil {
 		log.Printf("Error fetching user info: %v\n", err)
@@ -97,13 +100,30 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//store user info in db
 	if err := storeUserAndSetSession(w, userInfo); err != nil {
 		log.Printf("Error storing user in DB: %v\n", err)
 		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
+	// Return user details as JSON response
+	// w.Header().Set("Content-Type", "application/json")
+	// if err := json.NewEncoder(w).Encode(userInfo); err != nil {
+	// 	http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	// 	return
+	// }
+
+	jwtToken, err := generateJWTWithUserDetails(userInfo)
+	if err != nil {
+		log.Printf("Error generating JWT: %v\n", err)
+		http.Error(w, "Error generating JWT", http.StatusInternalServerError)
+		return
+	}
+
+	// Redirect to the frontend with the JWT token as a query parameter -> frontend decode the jwt token to display on frontend
+	redirectURL := fmt.Sprintf("%s?token=%s", getFrontendURL(), jwtToken)
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
 
 // retrieves the user's info from Google
