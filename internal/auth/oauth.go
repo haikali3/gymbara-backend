@@ -151,35 +151,6 @@ func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
 }
 
-// func GetUserInfoHandler(w http.ResponseWriter, r *http.Request) {
-// 	authCookie, err := r.Cookie("access_token")
-// 	if err != nil {
-// 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-// 		return
-// 	}
-
-// 	accessToken := authCookie.Value
-// 	client := &http.Client{}
-// 	req, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
-// 	req.Header.Set("Authorization", "Bearer "+accessToken) //Need access token to call this API
-
-// 	resp, err := client.Do(req)
-// 	if err != nil || resp.StatusCode != http.StatusOK {
-// 		http.Error(w, "Failed to fetch use details from Google", http.StatusInternalServerError)
-// 	}
-// 	defer resp.Body.Close()
-
-// 	var userInfo models.GoogleUser
-// 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-// 		http.Error(w, "Error decoding user info", http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	// Return user data as JSON
-// 	w.Header().Set("Content-Type", "application/json")
-// 	json.NewEncoder(w).Encode(userInfo)
-// }
-
 // Helper function to validate OAuth state for CSRF protection
 func validateOAuthState(r *http.Request) bool {
 	stateCookie, err := r.Cookie("oauthstate")

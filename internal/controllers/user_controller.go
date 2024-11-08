@@ -19,7 +19,7 @@ func GetUserInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
-		http.Error(w, "Failed to fetch user details from Google", http.StatusInternalServerError)
+		http.Error(w, "Failed to fetch user details from Google. Ensure your access token is valid and has the necessary scopes. If this issue persists, verify that your token is not expired.", http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
