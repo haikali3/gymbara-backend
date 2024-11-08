@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/haikali3/gymbara-backend/database"
-	"github.com/haikali3/gymbara-backend/models"
+	"github.com/haikali3/gymbara-backend/internal/database"
+	"github.com/haikali3/gymbara-backend/internal/models"
 )
 
 // Helper to write JSON responses

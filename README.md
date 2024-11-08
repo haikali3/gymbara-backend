@@ -23,28 +23,33 @@ This backend service provides APIs for:
 ## Directory Structure
 
 ```plaintext
-.
-├── auth/
-│   └── oauth.go           # oAuth2.0 
-├── config/
-│   └── config.go          # Environment configuration
-├── controllers/
-│   └── exercises.go       # HTTP request handlers
-├── models/
-│   └── exercise.go        # Data structures
-│   └── google_user.go      
-├── routes/
-│   └── routes.go          # Route definitions and CORS
-├── database/
-│   └── db.go              # Database connection
-│   ├── migrations/
-│      └── *.sql           # SQL migration files
-│   ├── script/
-│      └── *.sql           # SQL migration files
-├── .env.development       # Environment variables
-├── .env.production        # Environment variables
-├── main.go                # Application entry point
-└── README.md
+.gymbara-backend/
+├── cmd/                      # Entry points for the application
+│   └── main.go               # Main application entry point
+├── config/                   # Configuration management
+│   └── config.go
+├── internal/                 # Internal application logic
+│   ├── auth/                 # Authentication logic
+│   │   ├── oauth.go
+│   │   └── jwt.go
+│   ├── controllers/          # HTTP handlers
+│   │   ├── user_controller.go
+│   │   └── exercise_controller.go
+│   ├── database/             # Database connection and queries
+│   │   └── db.go
+│   ├── middleware/           # Middleware functions
+│   │   └── cors.go
+│   ├── models/               # Data models
+│   │   ├── google_user.go
+│   │   └── exercise.go
+│   └── routes/               # Route definitions
+│       └── routes.go
+├── pkg/                      # External reusable code (if needed)
+├── .env.example              # Example environment variables file
+├── go.mod                    # Go module definition
+├── go.sum                    # Go module dependencies
+├── README.md                 # Project documentation
+└── Dockerfile                # Docker configuration (if needed)
 ```
 
 ## Prerequisites

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/haikali3/gymbara-backend/config"
-	"github.com/haikali3/gymbara-backend/models"
+	"github.com/haikali3/gymbara-backend/internal/models"
 	_ "github.com/lib/pq"
 )
 
