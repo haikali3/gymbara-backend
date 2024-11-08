@@ -20,5 +20,5 @@ func RegisterRoutes() {
 	http.HandleFunc("/oauth/logout", oauth.GoogleLogoutHandler)
 
 	//fetch user details
-	http.HandleFunc("/api/user-info", controllers.GetUserInfoHandler)
+	http.Handle("/api/user-info", middleware.CORS(http.HandlerFunc(controllers.GetUserInfoHandler)))
 }

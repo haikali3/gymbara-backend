@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"encoding/json"
+	"io"
+	"log"
 	"net/http"
 )
 
@@ -19,6 +21,8 @@ func GetUserInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Error fetching user details: status %d, response body: %s\n", resp.StatusCode, string(body))
 		http.Error(w, "Failed to fetch user details from Google. Ensure your access token is valid and has the necessary scopes. If this issue persists, verify that your token is not expired.", http.StatusInternalServerError)
 		return
 	}
