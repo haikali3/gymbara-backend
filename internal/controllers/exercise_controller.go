@@ -145,7 +145,6 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	workoutSectionIDs := r.URL.Query()["workout_section_ids"]
-	// ids := strings.Split(workoutSectionIDs, ",")
 	if len(workoutSectionIDs) == 0 {
 		handleError(w, "Missing workout_section_ids parameter", http.StatusBadRequest, nil)
 		return
@@ -157,22 +156,22 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := fmt.Sprintf(`
-        SELECT
-            ws.id AS section_id,
-            ws.name AS section_name,
-            ws.route AS section_route,
-            e.id AS exercise_id,
-            e.name AS exercise_name
-        FROM
-            WorkoutSections ws
-        LEFT JOIN
-            Exercises e
-        ON
-            ws.id = e.workout_section_id
-        WHERE
-            ws.id IN (%s)
-        ORDER BY
-            ws.id, e.id;
+			SELECT
+				ws.id AS section_id,
+				ws.name AS section_name,
+				ws.route AS section_route,
+				e.id AS exercise_id,
+				e.name AS exercise_name
+			FROM
+				WorkoutSections ws
+			LEFT JOIN
+				Exercises e
+			ON
+				ws.id = e.workout_section_id
+			WHERE
+				ws.id IN (%s)
+			ORDER BY
+				ws.id, e.id;
     `, placeholders)
 
 	rows, err := database.DB.Query(query, args...)
@@ -188,7 +187,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 		var sectionID int
 		var sectionName, sectionRoute string
 		// var exerciseID *int
-		var exercise models.Exercise
+		var exercise models.ExerciseMinimal
 
 		err := rows.Scan(
 			&sectionID,
@@ -207,7 +206,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 				ID:        sectionID,
 				Name:      sectionName,
 				Route:     sectionRoute,
-				Exercises: []models.Exercise{},
+				Exercises: []models.ExerciseMinimal{},
 			}
 		}
 
