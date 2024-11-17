@@ -16,7 +16,7 @@ func RegisterRoutes() {
 	http.Handle("/workout-sections/with-exercises", middleware.CORS(http.HandlerFunc(controllers.GetWorkoutSectionsWithExercises))) // Get workout sections with exercises
 
 	//user submit exercise details
-	http.Handle("/workout-sections/user-exercise-details", middleware.CORS(http.HandlerFunc(controllers.SubmitUserExerciseDetails))) // Get workout sections with exercises
+	http.Handle("/workout-sections/user-exercise-details", middleware.CORS(http.HandlerFunc(controllers.SubmitUserExerciseDetails)))
 
 	// OAuth routes
 	http.HandleFunc("/oauth/login", oauth.GoogleLoginHandler)
