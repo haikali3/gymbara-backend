@@ -19,7 +19,6 @@ import (
 )
 
 // OAuth scopes
-// ! Consent from user is needed
 const (
 	ScopeUserInfoProfile = "https://www.googleapis.com/auth/userinfo.profile"
 	ScopeUserInfoEmail   = "https://www.googleapis.com/auth/userinfo.email"

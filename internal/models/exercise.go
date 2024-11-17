@@ -26,3 +26,15 @@ type ExerciseDetails struct {
 	RPE        string `json:"rpe"`
 	RestTime   string `json:"rest_time"`
 }
+
+type WorkoutSectionWithExercises struct {
+	ID        int               `json:"id"`
+	Name      string            `json:"name"`
+	Route     string            `json:"route"`
+	Exercises []ExerciseMinimal `json:"exercises"`
+}
+
+type ExerciseMinimal struct {
+	ID           int    `json:"id"`
+	ExerciseName string `json:"name"`
+}
