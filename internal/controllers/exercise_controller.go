@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/haikali3/gymbara-backend/database"
-	"github.com/haikali3/gymbara-backend/models"
+	"github.com/haikali3/gymbara-backend/internal/database"
+	"github.com/haikali3/gymbara-backend/internal/models"
 )
 
 // Helper to write JSON responses
@@ -29,7 +29,7 @@ func handleError(w http.ResponseWriter, msg string, status int, err error) {
 
 // Get workout sections
 func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
-	query := "SELECT id, name FROM WorkoutSections"
+	query := "SELECT id, name, route FROM WorkoutSections"
 
 	rows, err := database.DB.Query(query)
 	if err != nil {
@@ -45,7 +45,7 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 	var workoutSections []models.WorkoutSection
 	for rows.Next() {
 		var workoutSection models.WorkoutSection
-		if err := rows.Scan(&workoutSection.ID, &workoutSection.Name); err != nil {
+		if err := rows.Scan(&workoutSection.ID, &workoutSection.Name, &workoutSection.Route); err != nil {
 			handleError(w, "Unable to scan workout sections", http.StatusInternalServerError, err)
 			return
 		}

@@ -9,7 +9,6 @@ A comprehensive Golang-based REST API for managing workout programs, built with 
 - [Local Development Setup](#local-development-setup)
 - [Database Setup](#database-setup)
 - [API Endpoints](#api-endpoints)
-- [Code Structure](#code-structure)
 - [Deployment](#deployment)
 - [Environment Variables](#environment-variables)
 
@@ -24,22 +23,33 @@ This backend service provides APIs for:
 ## Directory Structure
 
 ```plaintext
-.
-├── config/
-│   └── config.go           # Environment configuration
-├── controllers/
-│   └── exercises.go        # HTTP request handlers
-├── models/
-│   └── models.go          # Data structures
-├── routes/
-│   └── routes.go          # Route definitions and CORS
-├── database/
-│   └── db.go              # Database connection
-├── migrations/
-│   └── *.sql              # SQL migration files
-├── .env                    # Environment variables
-├── main.go                # Application entry point
-└── README.md
+.gymbara-backend/
+├── cmd/                      # Entry points for the application
+│   └── main.go               # Main application entry point
+├── config/                   # Configuration management
+│   └── config.go
+├── internal/                 # Internal application logic
+│   ├── auth/                 # Authentication logic
+│   │   ├── oauth.go
+│   │   └── jwt.go
+│   ├── controllers/          # HTTP handlers
+│   │   ├── user_controller.go
+│   │   └── exercise_controller.go
+│   ├── database/             # Database connection and queries
+│   │   └── db.go
+│   ├── middleware/           # Middleware functions
+│   │   └── cors.go
+│   ├── models/               # Data models
+│   │   ├── google_user.go
+│   │   └── exercise.go
+│   └── routes/               # Route definitions
+│       └── routes.go
+├── pkg/                      # External reusable code (if needed)
+├── .env.example              # Example environment variables file
+├── go.mod                    # Go module definition
+├── go.sum                    # Go module dependencies
+├── README.md                 # Project documentation
+└── Dockerfile                # Docker configuration (if needed)
 ```
 
 ## Prerequisites
@@ -77,7 +87,17 @@ DB_NAME=gymbara
 SERVER_PORT=8080
 ```
 
-5. Run the server:
+5. Set the environment for development or production on your server
+```bash
+# For development
+export APP_ENV=development
+
+# For production
+export APP_ENV=production
+
+```
+
+6. Run the server:
 ```bash
 go run main.go
 ```
@@ -172,67 +192,15 @@ INSERT INTO Exercises (name, workoutsection_id, notes, substitution_1, substitut
 
 ## API Endpoints
 
-### Get Workout Sections
-```
-GET /workout-sections
-Response: [{"id": 1, "name": "Full Body"}, ...]
-```
+| Endpoint                      | Method | Description                                                                                              | Example Request                                                  | Example Response                                                                  |
+|-------------------------------|--------|----------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------|-----------------------------------------------------------------------------------|
+| **Get Workout Sections**      | GET    | Retrieves all workout sections (e.g., Full Body, Upper Body, etc.).                                      | `/workout-sections`                                              | `[{"id": 1, "name": "Full Body"}, {"id": 2, "name": "Upper Body"}, ...]`         |
+| **Get Exercise List**         | GET    | Retrieves a list of exercises based on the workout section ID.                                           | `/workout-sections/list?workout_section_id=1`                    | `[{"name": "Exercise Name", "reps": "8-10"}, ...]`                               |
+| **Get Exercise Details**      | GET    | Retrieves detailed information about exercises, including warmup sets, work sets, reps, etc.             | `/workout-sections/details?workout_section_id=1`                 | `[{"name": "Exercise Name", "warmup_sets": 2, "work_sets": 3, ...}, ...]`        |
+| **Login with Google**         | GET    | Redirects users to Google’s OAuth login page for authentication.                                         | `/oauth/login`                                                   | Redirects to Google OAuth login page                                              |
+| **Google OAuth Callback**     | GET    | Handles the callback from Google after successful authentication. Retrieves and stores user information. | `/oauth/callback`                                                | Redirects to frontend with auth token (set as cookie)                             |
+| **Logout**                    | GET    | Clears the user session and redirects the user to the frontend.                                          | `/oauth/logout`                                                  | Redirects to frontend (e.g., `http://localhost:3000` or production frontend URL)  |
 
-### Get Exercise List
-```
-GET /workout-sections/list?workout_section_id=1
-Response: [{"name": "Exercise Name", "reps": "8-10", ...}, ...]
-```
-
-### Get Exercise Details
-```
-GET /workout-sections/details?workout_section_id=1
-Response: [{"name": "Exercise Name", "warmup_sets": 2, ...}, ...]
-```
-
-## Code Structure
-
-### Configuration (config/config.go)
-```go
-type Config struct {
-    DBHost     string
-    DBPort     string
-    DBUser     string
-    DBPassword string
-    DBName     string
-    ServerPort string
-}
-
-func LoadConfig() *Config {
-    // Loads environment variables
-    // Returns configuration struct
-}
-```
-
-### Models (models/models.go)
-```go
-type Exercise struct {
-    ID           int    `json:"id"`
-    ExerciseName string `json:"name"`
-    // ... other fields
-}
-
-type WorkoutSection struct {
-    ID   int    `json:"id"`
-    Name string `json:"name"`
-}
-```
-
-### Controllers (controllers/exercises.go)
-```go
-func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
-    // Handles workout sections endpoint
-}
-
-func GetExercisesList(w http.ResponseWriter, r *http.Request) {
-    // Handles exercise list endpoint
-}
-```
 
 ## Deployment
 
