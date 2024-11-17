@@ -10,9 +10,10 @@ import (
 
 func RegisterRoutes() {
 	// Workout routes
-	http.Handle("/workout-sections", middleware.CORS(http.HandlerFunc(controllers.GetWorkoutSections)))         // Get all workout sections
-	http.Handle("/workout-sections/list", middleware.CORS(http.HandlerFunc(controllers.GetExercisesList)))      // Get basic list of exercises
-	http.Handle("/workout-sections/details", middleware.CORS(http.HandlerFunc(controllers.GetExerciseDetails))) // Get detailed exercise info
+	http.Handle("/workout-sections", middleware.CORS(http.HandlerFunc(controllers.GetWorkoutSections)))                             // Get all workout sections
+	http.Handle("/workout-sections/list", middleware.CORS(http.HandlerFunc(controllers.GetExercisesList)))                          // Get basic list of exercises
+	http.Handle("/workout-sections/details", middleware.CORS(http.HandlerFunc(controllers.GetExerciseDetails)))                     // Get detailed exercise info
+	http.Handle("/workout-sections/with-exercises", middleware.CORS(http.HandlerFunc(controllers.GetWorkoutSectionsWithExercises))) // Get workout sections with exercises
 
 	// OAuth routes
 	http.HandleFunc("/oauth/login", oauth.GoogleLoginHandler)

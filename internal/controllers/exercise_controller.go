@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/models"
@@ -25,6 +27,17 @@ func handleError(w http.ResponseWriter, msg string, status int, err error) {
 	if err != nil {
 		log.Println(msg, err)
 	}
+}
+
+// helper for palceholders
+func generatePlaceholders(count int) (string, []interface{}) {
+	placeholders := make([]string, count)
+	args := make([]interface{}, count)
+	for i := 0; i < count; i++ {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = i + 1
+	}
+	return strings.Join(placeholders, ","), args
 }
 
 // Get workout sections
@@ -102,7 +115,7 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := `
-        SELECT e.name, ed.warmup_sets, ed.working_sets, ed.reps, ed.load, ed.rpe, ed.rest_time
+    SELECT e.name, ed.warmup_sets, ed.working_sets, ed.reps, ed.load, ed.rpe, ed.rest_time
 		FROM Exercises e
 		JOIN ExerciseDetails ed ON e.id = ed.exercise_id
 		WHERE e.workout_section_id = $1
@@ -128,4 +141,86 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		exerciseDetails = append(exerciseDetails, detail)
 	}
 	writeJSONResponse(w, http.StatusOK, exerciseDetails)
+}
+
+func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
+	workoutSectionIDs := r.URL.Query()["workout_section_ids"]
+	// ids := strings.Split(workoutSectionIDs, ",")
+	if len(workoutSectionIDs) == 0 {
+		handleError(w, "Missing workout_section_ids parameter", http.StatusBadRequest, nil)
+		return
+	}
+
+	placeholders, args := generatePlaceholders(len(workoutSectionIDs))
+	for i, id := range workoutSectionIDs {
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+        SELECT
+            ws.id AS section_id,
+            ws.name AS section_name,
+            ws.route AS section_route,
+            e.id AS exercise_id,
+            e.name AS exercise_name
+        FROM
+            WorkoutSections ws
+        LEFT JOIN
+            Exercises e
+        ON
+            ws.id = e.workout_section_id
+        WHERE
+            ws.id IN (%s)
+        ORDER BY
+            ws.id, e.id;
+    `, placeholders)
+
+	rows, err := database.DB.Query(query, args...)
+	if err != nil {
+		handleError(w, "Unable to query workout sections and exercises", http.StatusInternalServerError, err)
+		return
+	}
+	defer rows.Close()
+
+	// Map the results to the desired JSON structure
+	sectionsMap := make(map[int]*models.WorkoutSectionWithExercises)
+	for rows.Next() {
+		var sectionID int
+		var sectionName, sectionRoute string
+		// var exerciseID *int
+		var exercise models.Exercise
+
+		err := rows.Scan(
+			&sectionID,
+			&sectionName,
+			&sectionRoute,
+			&exercise.ID,
+			&exercise.ExerciseName,
+		)
+		if err != nil {
+			handleError(w, "Unable to scan workout sections and exercises", http.StatusInternalServerError, err)
+			return
+		}
+
+		if _, exists := sectionsMap[sectionID]; !exists {
+			sectionsMap[sectionID] = &models.WorkoutSectionWithExercises{
+				ID:        sectionID,
+				Name:      sectionName,
+				Route:     sectionRoute,
+				Exercises: []models.Exercise{},
+			}
+		}
+
+		// Add the exercise to the section
+		if exercise.ID != 0 { // Only add exercises if the ID is valid
+			sectionsMap[sectionID].Exercises = append(sectionsMap[sectionID].Exercises, exercise)
+		}
+	}
+
+	sections := make([]models.WorkoutSectionWithExercises, 0, len(sectionsMap))
+	for _, section := range sectionsMap {
+		sections = append(sections, *section)
+	}
+
+	writeJSONResponse(w, http.StatusOK, sections)
 }
