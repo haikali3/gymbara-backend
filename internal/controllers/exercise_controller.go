@@ -223,6 +223,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, sections)
 }
 
+// TODO: initialize user workout first before submit?
 func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	// decode json req body
 	var request models.UserExerciseRequest

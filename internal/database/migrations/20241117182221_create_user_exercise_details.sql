@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE UserExerciseDetails (
+CREATE TABLE UserExercisesDetails (
     id SERIAL PRIMARY KEY,
     user_workout_id INT REFERENCES UserWorkouts(id),
     exercise_id INT REFERENCES Exercises(id),
@@ -11,5 +11,5 @@ CREATE TABLE UserExerciseDetails (
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS UserExerciseDetails;
+DROP TABLE IF EXISTS UserExercisesDetails;
 -- +goose StatementEnd
