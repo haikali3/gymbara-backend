@@ -3,6 +3,7 @@
 A comprehensive Golang-based REST API for managing workout programs, built with native Go HTTP server and PostgreSQL.
 
 ## Table of Contents
+
 - [Project Overview](#project-overview)
 - [Directory Structure](#directory-structure)
 - [Prerequisites](#prerequisites)
@@ -15,6 +16,7 @@ A comprehensive Golang-based REST API for managing workout programs, built with 
 ## Project Overview
 
 This backend service provides APIs for:
+
 - Managing workout sections (Full Body, Upper Body, Lower Body)
 - Exercise management with detailed attributes
 - Exercise details including sets, reps, and rest times
@@ -43,7 +45,8 @@ This backend service provides APIs for:
 │   │   ├── google_user.go
 │   │   └── exercise.go
 │   └── routes/               # Route definitions
-│       └── routes.go
+│   │   └── routes.go
+│   └── utils/                # Utility functions
 ├── pkg/                      # External reusable code (if needed)
 ├── .env.example              # Example environment variables file
 ├── go.mod                    # Go module definition
@@ -62,22 +65,26 @@ This backend service provides APIs for:
 ## Local Development Setup
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd gymbara-backend
 ```
 
 2. Install dependencies:
+
 ```bash
 go mod tidy
 ```
 
 3. Copy the example environment file:
+
 ```bash
 cp .env.example .env
 ```
 
 4. Configure your local `.env`:
+
 ```bash
 DB_HOST=localhost
 DB_PORT=5432
@@ -88,6 +95,7 @@ SERVER_PORT=8080
 ```
 
 5. Set the environment for development or production on your server
+
 ```bash
 # For development
 export APP_ENV=development
@@ -98,6 +106,7 @@ export APP_ENV=production
 ```
 
 6. Run the server:
+
 ```bash
 go run main.go
 ```
@@ -107,12 +116,14 @@ go run main.go
 ### 1. PostgreSQL Installation
 
 #### Ubuntu/Debian:
+
 ```bash
 sudo apt update
 sudo apt install postgresql postgresql-contrib
 ```
 
 #### macOS (using Homebrew):
+
 ```bash
 brew install postgresql
 brew services start postgresql
@@ -121,11 +132,13 @@ brew services start postgresql
 ### 2. Database Creation
 
 1. Access PostgreSQL:
+
 ```bash
 sudo -u postgres psql
 ```
 
 2. Create database and user:
+
 ```sql
 CREATE DATABASE gymbara;
 CREATE USER youruser WITH PASSWORD 'yourpassword';
@@ -179,34 +192,34 @@ CREATE TABLE Instructions (
 
 ```sql
 -- Insert workout sections
-INSERT INTO WorkoutSections (name) VALUES 
-('Full Body'), 
-('Upper Body'), 
+INSERT INTO WorkoutSections (name) VALUES
+('Full Body'),
+('Upper Body'),
 ('Lower Body');
 
 -- Insert exercises
-INSERT INTO Exercises (name, workoutsection_id, notes, substitution_1, substitution_2) VALUES 
+INSERT INTO Exercises (name, workoutsection_id, notes, substitution_1, substitution_2) VALUES
 ('Incline Machine Press', 1, '45° incline, focus on squeezing chest', 'Incline Smith Machine Press', 'Incline DB Press'),
 ('Single-Leg Leg Press (Heavy)', 1, 'High and wide foot positioning, start with weaker leg', 'Machine Squat', 'Hack Squat');
 ```
 
 ## API Endpoints
 
-| Endpoint                      | Method | Description                                                                                              | Example Request                                                  | Example Response                                                                  |
-|-------------------------------|--------|----------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| **Get Workout Sections**      | GET    | Retrieves all workout sections (e.g., Full Body, Upper Body, etc.).                                      | `/workout-sections`                                              | `[{"id": 1, "name": "Full Body"}, {"id": 2, "name": "Upper Body"}, ...]`         |
-| **Get Exercise List**         | GET    | Retrieves a list of exercises based on the workout section ID.                                           | `/workout-sections/list?workout_section_id=1`                    | `[{"name": "Exercise Name", "reps": "8-10"}, ...]`                               |
-| **Get Exercise Details**      | GET    | Retrieves detailed information about exercises, including warmup sets, work sets, reps, etc.             | `/workout-sections/details?workout_section_id=1`                 | `[{"name": "Exercise Name", "warmup_sets": 2, "work_sets": 3, ...}, ...]`        |
-| **Login with Google**         | GET    | Redirects users to Google’s OAuth login page for authentication.                                         | `/oauth/login`                                                   | Redirects to Google OAuth login page                                              |
-| **Google OAuth Callback**     | GET    | Handles the callback from Google after successful authentication. Retrieves and stores user information. | `/oauth/callback`                                                | Redirects to frontend with auth token (set as cookie)                             |
-| **Logout**                    | GET    | Clears the user session and redirects the user to the frontend.                                          | `/oauth/logout`                                                  | Redirects to frontend (e.g., `http://localhost:3000` or production frontend URL)  |
-
+| Endpoint                  | Method | Description                                                                                              | Example Request                                  | Example Response                                                                 |
+| ------------------------- | ------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------- |
+| **Get Workout Sections**  | GET    | Retrieves all workout sections (e.g., Full Body, Upper Body, etc.).                                      | `/workout-sections`                              | `[{"id": 1, "name": "Full Body"}, {"id": 2, "name": "Upper Body"}, ...]`         |
+| **Get Exercise List**     | GET    | Retrieves a list of exercises based on the workout section ID.                                           | `/workout-sections/list?workout_section_id=1`    | `[{"name": "Exercise Name", "reps": "8-10"}, ...]`                               |
+| **Get Exercise Details**  | GET    | Retrieves detailed information about exercises, including warmup sets, work sets, reps, etc.             | `/workout-sections/details?workout_section_id=1` | `[{"name": "Exercise Name", "warmup_sets": 2, "work_sets": 3, ...}, ...]`        |
+| **Login with Google**     | GET    | Redirects users to Google’s OAuth login page for authentication.                                         | `/oauth/login`                                   | Redirects to Google OAuth login page                                             |
+| **Google OAuth Callback** | GET    | Handles the callback from Google after successful authentication. Retrieves and stores user information. | `/oauth/callback`                                | Redirects to frontend with auth token (set as cookie)                            |
+| **Logout**                | GET    | Clears the user session and redirects the user to the frontend.                                          | `/oauth/logout`                                  | Redirects to frontend (e.g., `http://localhost:3000` or production frontend URL) |
 
 ## Deployment
 
 ### 1. Building for Production
 
 Create a production build:
+
 ```bash
 go build -o gymbara-backend
 ```
@@ -214,6 +227,7 @@ go build -o gymbara-backend
 ### 2. Docker Deployment
 
 1. Create Dockerfile:
+
 ```dockerfile
 FROM golang:1.18-alpine
 
@@ -232,6 +246,7 @@ CMD ["./gymbara-backend"]
 ```
 
 2. Build and run:
+
 ```bash
 docker build -t gymbara-backend .
 docker run -p 8080:8080 --env-file .env gymbara-backend
@@ -240,6 +255,7 @@ docker run -p 8080:8080 --env-file .env gymbara-backend
 ### 3. Production Environment Variables
 
 Create a production `.env`:
+
 ```bash
 DB_HOST=production-db-host
 DB_PORT=5432
@@ -252,6 +268,7 @@ SERVER_PORT=8080
 ### 4. Database Migrations (Optional)
 
 Set up Goose for migrations:
+
 ```bash
 export DATABASE_URL="postgres://user:password@host:5432/dbname?sslmode=disable"
 goose up                    # Apply migrations
@@ -262,6 +279,7 @@ goose status               # Check migration status
 ## Security Considerations
 
 1. CORS Configuration (routes/routes.go):
+
 ```go
 func corsMiddleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -272,6 +290,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 ```
 
 2. Environment Variables:
+
 - Never commit `.env` files
 - Use different `.env` files for development and production
 - Use secure passwords in production
