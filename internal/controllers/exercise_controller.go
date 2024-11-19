@@ -193,7 +193,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSONResponse(w, http.StatusOK, sections)
 }
 
-// TODO: initialize user workout first before submit?
+// TODO: user logged in -> initialize user id on UserWorkouts table
 func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	var request models.UserExerciseRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
