@@ -29,7 +29,7 @@ func handleError(w http.ResponseWriter, msg string, status int, err error) {
 	}
 }
 
-// helper for palceholders
+// helper for placeholders
 func generatePlaceholders(count int) (string, []interface{}) {
 	placeholders := make([]string, count)
 	args := make([]interface{}, count)
@@ -176,7 +176,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := database.DB.Query(query, args...)
 	if err != nil {
-		handleError(w, "Unable to query workout sections and exercises", http.StatusInternalServerError, err)
+		handleError(w, fmt.Sprintf("Unable to query workout sections and exercises for workout_section_ids: %v. Query: %s", workoutSectionIDs, query), http.StatusInternalServerError, err)
 		return
 	}
 	defer rows.Close()
@@ -186,7 +186,6 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var sectionID int
 		var sectionName, sectionRoute string
-		// var exerciseID *int
 		var exercise models.ExerciseMinimal
 
 		err := rows.Scan(
@@ -197,7 +196,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 			&exercise.ExerciseName,
 		)
 		if err != nil {
-			handleError(w, "Unable to scan workout sections and exercises", http.StatusInternalServerError, err)
+			handleError(w, fmt.Sprintf("Error scanning row for section_id: %d. Partial data: SectionName=%s, Route=%s", sectionID, sectionName, sectionRoute), http.StatusInternalServerError, err)
 			return
 		}
 
@@ -222,4 +221,65 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSONResponse(w, http.StatusOK, sections)
+}
+
+// TODO: initialize user workout first before submit?
+func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
+	// decode json req body
+	var request models.UserExerciseRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		handleError(w, "invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	// Validate the request
+	if request.UserWorkoutID == 0 || len(request.Exercises) == 0 {
+		handleError(w, "missing required fields: user_workout_id or exercises", http.StatusBadRequest, nil)
+		return
+	}
+
+	// begin db transaction
+	tx, err := database.DB.Begin()
+	if err != nil {
+		handleError(w, "failed to start database transaction", http.StatusInternalServerError, err)
+		return
+	}
+
+	// rollback or commit transaction appropriately
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	// insert or update custom details for each exercise
+	for _, exercise := range request.Exercises {
+		//validate input
+		if exercise.ExerciseID == 0 || exercise.Reps <= 0 || exercise.Load <= 0 {
+			err = fmt.Errorf("invalid input for exercise_id: %d. Reps: %d, Load: %d", exercise.ExerciseID, exercise.Reps, exercise.Load)
+			return
+		}
+
+		//execute upsert query
+		_, err = tx.Exec(`
+		INSERT INTO UserExercisesDetails (user_workout_id, exercise_id, custom_reps, custom_load)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (user_workout_id, exercise_id) DO UPDATE
+		SET custom_reps = $3, custom_load = $4
+	`, request.UserWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
+		if err != nil {
+			handleError(w, "failed to insert or update user exercise details", http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	// return success response
+	writeJSONResponse(w, http.StatusCreated, map[string]interface{}{
+		"message": "user exercise details submitted successfully",
+	})
 }

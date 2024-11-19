@@ -12,7 +12,8 @@ vendor/
 
 # Environment variable files
 .env
-.env.*
+.env.production
+.env.development
 
 # Logs and debug output
 *.log

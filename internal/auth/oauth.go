@@ -42,7 +42,7 @@ func InitializeOAuthConfig() {
 		Endpoint:     google.Endpoint,
 	}
 
-	fmt.Printf("OAuth configuration initialized with Redirect URL: %s\n", GoogleOauthConfig.RedirectURL)
+	log.Printf("\033[32mRedirect URI: %s\033[0m", GoogleOauthConfig.RedirectURL)
 }
 
 // creates a state token to prevent CSRF attacks -> stores it in a cookie
@@ -90,8 +90,10 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not get token", http.StatusInternalServerError)
 		return
 	}
+	log.Printf("\033[33mReceived token: %s\033[0m", token.AccessToken)
 
 	//get user info from google's api
+	log.Printf("\033[34mFetching user info for token: %s\033[0m", token.AccessToken) // Add this log
 	userInfo, err := fetchUserInfo(context.Background(), token)
 	if err != nil {
 		log.Printf("Error fetching user info: %v\n", err)
@@ -119,6 +121,9 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
 }
 
+//TODO: create get access token
+//TODO: create refresh token
+
 // retrieves the user's info from Google
 func fetchUserInfo(ctx context.Context, token *oauth2.Token) (models.GoogleUser, error) {
 	client := GoogleOauthConfig.Client(ctx, token)
@@ -134,20 +139,6 @@ func fetchUserInfo(ctx context.Context, token *oauth2.Token) (models.GoogleUser,
 	}
 
 	return userInfo, nil
-}
-
-// clears the session cookie and redirects the user to the frontend
-func GoogleLogoutHandler(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth_token",
-		Value:    "",
-		Expires:  time.Unix(0, 0),
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-	})
-
-	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
 }
 
 // Helper function to validate OAuth state for CSRF protection

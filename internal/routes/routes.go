@@ -15,10 +15,12 @@ func RegisterRoutes() {
 	http.Handle("/workout-sections/details", middleware.CORS(http.HandlerFunc(controllers.GetExerciseDetails)))                     // Get detailed exercise info
 	http.Handle("/workout-sections/with-exercises", middleware.CORS(http.HandlerFunc(controllers.GetWorkoutSectionsWithExercises))) // Get workout sections with exercises
 
+	//user submit exercise details
+	http.Handle("/workout-sections/user-exercise-details", middleware.CORS(http.HandlerFunc(controllers.SubmitUserExerciseDetails)))
+
 	// OAuth routes
 	http.HandleFunc("/oauth/login", oauth.GoogleLoginHandler)
 	http.HandleFunc("/oauth/callback", oauth.GoogleCallbackHandler)
-	http.HandleFunc("/oauth/logout", oauth.GoogleLogoutHandler)
 
 	//fetch user details
 	http.Handle("/api/user-info", middleware.CORS(http.HandlerFunc(controllers.GetUserInfoHandler)))
