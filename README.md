@@ -12,6 +12,7 @@ A comprehensive Golang-based REST API for managing workout programs, built with 
 - [API Endpoints](#api-endpoints)
 - [Deployment](#deployment)
 - [Environment Variables](#environment-variables)
+- [ERD Diagram](#erd-diagram)
 
 ## Project Overview
 
@@ -305,3 +306,7 @@ func corsMiddleware(next http.Handler) http.Handler {
    - Database connection pool stats
    - Error rates
    - Endpoint usage
+
+## ERD Diagram
+
+![alt text](image.png)
