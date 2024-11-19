@@ -225,23 +225,35 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 
 // TODO: initialize user workout first before submit?
 func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
-	// decode json req body
 	var request models.UserExerciseRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		handleError(w, "invalid request body", http.StatusBadRequest, err)
+		handleError(w, "Invalid request body", http.StatusBadRequest, err)
 		return
 	}
 
 	// Validate the request
 	if request.UserWorkoutID == 0 || len(request.Exercises) == 0 {
-		handleError(w, "missing required fields: user_workout_id or exercises", http.StatusBadRequest, nil)
+		handleError(w, "Missing required fields: user_workout_id or exercises", http.StatusBadRequest, nil)
+		return
+	}
+
+	var userWorkoutExists bool
+	err := database.DB.QueryRow(`
+		SELECT EXISTS(SELECT 1 FROM UserWorkouts WHERE id = $1)
+	`, request.UserWorkoutID).Scan(&userWorkoutExists)
+	if err != nil {
+		handleError(w, "Database error while checking UserWorkouts existence", http.StatusInternalServerError, err)
+		return
+	}
+	if !userWorkoutExists {
+		handleError(w, fmt.Sprintf("Invalid user_workout_id: %d. No such workout found.", request.UserWorkoutID), http.StatusBadRequest, nil)
 		return
 	}
 
 	// begin db transaction
 	tx, err := database.DB.Begin()
 	if err != nil {
-		handleError(w, "failed to start database transaction", http.StatusInternalServerError, err)
+		handleError(w, "Failed to start database transaction", http.StatusInternalServerError, err)
 		return
 	}
 
