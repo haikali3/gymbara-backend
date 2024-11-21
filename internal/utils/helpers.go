@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/haikali3/gymbara-backend/internal/models"
 )
 
 func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
@@ -33,4 +35,16 @@ func GeneratePlaceholders(count int) (string, []interface{}) {
 		args[i] = i + 1
 	}
 	return strings.Join(placeholders, ","), args
+}
+
+// HasDuplicateExerciseIDs checks for duplicate exercise IDs in the input.
+func HasDuplicateExerciseIDs(exercises []models.UserExerciseInput) (int, bool) {
+	seen := make(map[int]bool)
+	for _, exercise := range exercises {
+		if seen[exercise.ExerciseID] {
+			return exercise.ExerciseID, true // Duplicate found
+		}
+		seen[exercise.ExerciseID] = true
+	}
+	return 0, false // No duplicates
 }

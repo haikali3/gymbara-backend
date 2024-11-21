@@ -193,7 +193,6 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSONResponse(w, http.StatusOK, sections)
 }
 
-// TODO: user logged in -> initialize user id on UserWorkouts table
 func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	var request models.UserExerciseRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -201,22 +200,15 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate the request
-	if request.UserWorkoutID == 0 || len(request.Exercises) == 0 {
-		utils.HandleError(w, "Missing required fields: user_workout_id or exercises", http.StatusBadRequest, nil)
+	// validate the request
+	if request.SectionID == 0 || len(request.Exercises) == 0 {
+		utils.HandleError(w, "Missing required fields: section_id or exercises", http.StatusBadRequest, nil)
 		return
 	}
 
-	var userWorkoutExists bool
-	err := database.DB.QueryRow(`
-		SELECT EXISTS(SELECT 1 FROM UserWorkouts WHERE id = $1)
-	`, request.UserWorkoutID).Scan(&userWorkoutExists)
-	if err != nil {
-		utils.HandleError(w, "Database error while checking UserWorkouts existence", http.StatusInternalServerError, err)
-		return
-	}
-	if !userWorkoutExists {
-		utils.HandleError(w, fmt.Sprintf("Invalid user_workout_id: %d. No user's workout found.", request.UserWorkoutID), http.StatusBadRequest, nil)
+	// Check for duplicate exercise IDs
+	if duplicateExerciseID, found := utils.HasDuplicateExerciseIDs(request.Exercises); found {
+		utils.HandleError(w, fmt.Sprintf("Duplicate(exercise_id: %d) found in request", duplicateExerciseID), http.StatusBadRequest, nil)
 		return
 	}
 
@@ -239,11 +231,45 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// insert or update custom details for each exercise
+	//validate user existence using OAuth email or ID
+	var userID int
+	err = tx.QueryRow(`
+		SELECT id FROM Users WHERE email = $1
+	`, request.UserEmail).Scan(&userID)
+	if err != nil {
+		utils.HandleError(w, "User not found. Please log in.", http.StatusUnauthorized, err)
+		return
+	}
+
+	//check UserWorkout exist, create if not
+	var userWorkoutID int
+	err = tx.QueryRow(`
+		INSERT INTO UserWorkouts (user_id, section_id)
+		VALUES ($1, $2)
+		ON CONFLICT (user_id, section_id) DO UPDATE
+		SET user_id = EXCLUDED.user_id
+		RETURNING id
+	`, userID, request.SectionID).Scan(&userWorkoutID)
+	if err != nil {
+		utils.HandleError(w, fmt.Sprintf("Failed to insert or update user workout for user_id: %d, section_id: %d", userID, request.SectionID), http.StatusInternalServerError, err)
+		return
+	}
+
+	// validate each exercise ID and  insert or update custom details
 	for _, exercise := range request.Exercises {
 		//validate input
-		if exercise.ExerciseID == 0 || exercise.Reps <= 0 || exercise.Load <= 0 {
-			err = fmt.Errorf("invalid input for exercise_id: %d. Reps: %d, Load: %d", exercise.ExerciseID, exercise.Reps, exercise.Load)
+		if exercise.Reps <= 0 || exercise.Load <= 0 {
+			utils.HandleError(w, fmt.Sprintf("Invalid reps or load for exercise_id: %d", exercise.ExerciseID), http.StatusBadRequest, nil)
+			return
+		}
+
+		//check exercise id exist
+		var exerciseExists bool
+		err = tx.QueryRow(`
+			SELECT EXISTS(SELECT 1 FROM Exercises WHERE id = $1)
+		`, exercise.ExerciseID).Scan(&exerciseExists)
+		if err != nil || !exerciseExists {
+			utils.HandleError(w, fmt.Sprintf("Invalid exercise_id: %d doesn't exist", exercise.ExerciseID), http.StatusBadRequest, nil)
 			return
 		}
 
@@ -253,15 +279,25 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (user_workout_id, exercise_id) DO UPDATE
 		SET custom_reps = $3, custom_load = $4
-	`, request.UserWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
+	`, userWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
 		if err != nil {
 			utils.HandleError(w, "failed to insert or update user exercise details", http.StatusInternalServerError, err)
 			return
 		}
 	}
 
+	var updatedExercises []models.UserExerciseInput
+	for _, exercise := range request.Exercises {
+		updatedExercises = append(updatedExercises, models.UserExerciseInput{
+			ExerciseID: exercise.ExerciseID,
+			Reps:       exercise.Reps,
+			Load:       exercise.Load,
+		})
+	}
 	// return success response
 	utils.WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{
-		"message": "user exercise details submitted successfully",
+		"message":           "user exercise details submitted successfully",
+		"user_workout_id":   userWorkoutID,
+		"updated_exercises": updatedExercises,
 	})
 }
