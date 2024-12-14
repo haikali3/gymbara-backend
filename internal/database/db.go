@@ -8,7 +8,9 @@ import (
 
 	"github.com/haikali3/gymbara-backend/config"
 	"github.com/haikali3/gymbara-backend/internal/models"
+	"github.com/haikali3/gymbara-backend/internal/utils"
 	_ "github.com/lib/pq"
+	"go.uber.org/zap"
 )
 
 var DB *sql.DB
@@ -21,7 +23,7 @@ func Connect(cfg *config.Config) {
 	var err error
 	DB, err = sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		utils.Logger.Fatal("Failed to connect to database:", zap.String("error", err.Error()))
 	}
 
 	DB.SetMaxOpenConns(25)
@@ -29,10 +31,9 @@ func Connect(cfg *config.Config) {
 	DB.SetConnMaxLifetime(5 * time.Minute)
 
 	if err = DB.Ping(); err != nil {
-		log.Fatal("Database connection is not alive:", err)
+		utils.Logger.Fatal("Database connection is not alive:", zap.String("error", err.Error()))
 	}
-
-	log.Println("Database connected successfully.")
+	utils.Logger.Info("Database connected successfully.")
 }
 
 // inserts or updates a user in the database after OAuth2 login
@@ -57,7 +58,7 @@ func StoreUserInDB(user models.GoogleUser, provider string) (int, error) {
 func StoreUserWithToken(user models.GoogleUser, accessToken string) error {
 	//TODO: is it normal for this access token will update current row and also other row for column access token?
 	// im not sure...
-	log.Printf("Updating user: %s with access token: %s", user.Email, accessToken)
+	utils.Logger.Info("Updating user with access token", zap.String("email", user.Email), zap.String("accessToken", accessToken))
 
 	_, err := DB.Exec(`
 			INSERT INTO Users (username, email, oauth_provider, oauth_id, access_token)
