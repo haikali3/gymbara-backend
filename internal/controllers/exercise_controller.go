@@ -8,6 +8,7 @@ import (
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/models"
 	"github.com/haikali3/gymbara-backend/internal/utils"
+	"go.uber.org/zap"
 )
 
 // Get workout sections
@@ -19,11 +20,7 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 		utils.HandleError(w, "Unable to query workout sections", http.StatusInternalServerError, err)
 		return
 	}
-	defer func() {
-		if rows != nil {
-			rows.Close()
-		}
-	}()
+	defer rows.Close()
 
 	var workoutSections []models.WorkoutSection
 	for rows.Next() {
@@ -57,11 +54,7 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 		utils.HandleError(w, "Unable to query exercise basic details", http.StatusInternalServerError, err)
 		return
 	}
-	defer func() {
-		if rows != nil {
-			rows.Close()
-		}
-	}()
+	defer rows.Close()
 
 	var exerciseList []models.ExerciseDetails
 	for rows.Next() {
@@ -72,6 +65,10 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 		}
 		exerciseList = append(exerciseList, detail)
 	}
+	utils.Logger.Info("Retrieved exercises",
+		zap.Int("count", len(exerciseList)),
+		zap.String("workout_section_id", workoutSectionID),
+	)
 	utils.WriteJSONResponse(w, http.StatusOK, exerciseList)
 }
 
@@ -93,13 +90,13 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	rows, err := database.DB.Query(query, workoutSectionID)
 	if err != nil {
 		utils.HandleError(w, "Unable to query exercise details", http.StatusInternalServerError, err)
+		utils.Logger.Error("Failed to query exercise details",
+			zap.String("workout_section_id", workoutSectionID),
+			zap.Error(err),
+		)
 		return
 	}
-	defer func() {
-		if rows != nil {
-			rows.Close()
-		}
-	}()
+	defer rows.Close()
 
 	var exerciseDetails []models.ExerciseDetails
 	for rows.Next() {
@@ -110,6 +107,10 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		}
 		exerciseDetails = append(exerciseDetails, detail)
 	}
+	utils.Logger.Info("Retrieved exercise details",
+		zap.Int("count", len(exerciseDetails)),
+		zap.String("workout_section_id", workoutSectionID),
+	)
 	utils.WriteJSONResponse(w, http.StatusOK, exerciseDetails)
 }
 

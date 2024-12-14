@@ -7,13 +7,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/models"
+	"github.com/haikali3/gymbara-backend/internal/utils"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -31,7 +32,7 @@ var GoogleOauthConfig *oauth2.Config
 func InitializeOAuthConfig() {
 	backendBaseURL := os.Getenv("BACKEND_BASE_URL")
 	if backendBaseURL == "" {
-		log.Fatal("BACKEND_BASE_URL is not set in the environment variables")
+		utils.Logger.Fatal("BACKEND_BASE_URL is not set in the environment variables")
 	}
 
 	GoogleOauthConfig = &oauth2.Config{
@@ -42,7 +43,9 @@ func InitializeOAuthConfig() {
 		Endpoint:     google.Endpoint,
 	}
 
-	log.Printf("\033[32mRedirect URI: %s\033[0m", GoogleOauthConfig.RedirectURL)
+	utils.Logger.Info("OAuth configuration initialized",
+		zap.String("redirect_url", GoogleOauthConfig.RedirectURL),
+	)
 }
 
 // creates a state token to prevent CSRF attacks -> stores it in a cookie
@@ -60,6 +63,7 @@ func GenerateStateOAuthCookie(w http.ResponseWriter) string {
 		HttpOnly: true, // ? change if https?
 	})
 
+	utils.Logger.Debug("Generated OAuth state cookie", zap.String("oauth_state", oauthStateString))
 	return oauthStateString
 }
 
@@ -71,7 +75,7 @@ func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	oauthStateString := GenerateStateOAuthCookie(w)
 	authURL := GoogleOauthConfig.AuthCodeURL(oauthStateString)
-	fmt.Printf("Redirecting to Google OAuth URL: %s\n", authURL)
+	utils.Logger.Info("Redirecting to Google OAuth URL", zap.String("auth_url", authURL))
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
 
@@ -79,6 +83,15 @@ func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	//prevent csrf
 	if !validateOAuthState(r) {
+		stateCookie, err := r.Cookie("oauthstate")
+		if err != nil {
+			utils.Logger.Error("Failed to retrieve OAuth state cookie", zap.Error(err))
+		} else {
+			utils.Logger.Error("Invalid OAuth state",
+				zap.String("state", r.FormValue("state")),
+				zap.String("cookie_value", stateCookie.Value),
+			)
+		}
 		http.Error(w, "Invalid OAuth state", http.StatusBadRequest)
 		return
 	}
@@ -86,24 +99,24 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	//exchg code for token from google's oauth2 server
 	token, err := GoogleOauthConfig.Exchange(context.Background(), r.FormValue("code"))
 	if err != nil {
-		log.Printf("Error exchanging code for token: %v\n", err)
+		utils.Logger.Error("Error exchanging code for token", zap.Error(err))
 		http.Error(w, "Could not get token", http.StatusInternalServerError)
 		return
 	}
-	log.Printf("\033[33mReceived token: %s\033[0m", token.AccessToken)
+	utils.Logger.Info("Received token", zap.String("access_token", token.AccessToken))
 
 	//get user info from google's api
-	log.Printf("\033[34mFetching user info for token: %s\033[0m", token.AccessToken) // Add this log
+	utils.Logger.Info("Fetching user info for token", zap.String("access_token", token.AccessToken)) // Add this log
 	userInfo, err := fetchUserInfo(context.Background(), token)
 	if err != nil {
-		log.Printf("Error fetching user info: %v\n", err)
+		utils.Logger.Error("Error fetching user info", zap.Error(err))
 		http.Error(w, "Failed to fetch user info", http.StatusInternalServerError)
 		return
 	}
 
 	err = database.StoreUserWithToken(userInfo, token.AccessToken)
 	if err != nil {
-		log.Printf("Error storing user in DB: %v\n", err)
+		utils.Logger.Error("Error storing user in DB", zap.Error(err))
 		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
 		return
 	}
@@ -117,6 +130,7 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Secure:   true, // Set to true if using HTTPS
 		Path:     "/",
 	})
+	utils.Logger.Info("Session cookie set", zap.String("user_email", userInfo.Email))
 
 	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
 }
@@ -138,16 +152,27 @@ func fetchUserInfo(ctx context.Context, token *oauth2.Token) (models.GoogleUser,
 		return models.GoogleUser{}, fmt.Errorf("error decoding user info: %v", err)
 	}
 
+	utils.Logger.Debug("Fetched user info from Google", zap.String("user_email", userInfo.Email))
 	return userInfo, nil
 }
 
 // Helper function to validate OAuth state for CSRF protection
+// validateOAuthState checks the validity of the OAuth state parameter in the request.
+// It retrieves the "oauthstate" cookie from the request and compares its value with the "state" form value.
+// If the cookie is not found or the values do not match, it logs an error and returns false.
+// If the values match, it logs a debug message and returns true.
+//
+// Parameters: r - The HTTP request containing the OAuth state parameter and cookies.
+//
+// Returns: bool - true if the OAuth state is valid, false otherwise.
+
 func validateOAuthState(r *http.Request) bool {
 	stateCookie, err := r.Cookie("oauthstate")
 	if err != nil || r.FormValue("state") != stateCookie.Value {
-		log.Println("Invalid OAuth state or cookie mismatch:", err)
+		utils.Logger.Error("Invalid OAuth state or cookie mismatch", zap.Error(err))
 		return false
 	}
+	utils.Logger.Debug("Valid OAuth state", zap.String("state", r.FormValue("state")))
 	return true
 }
 
