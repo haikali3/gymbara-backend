@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"strings"
+
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/middleware"
 	"github.com/haikali3/gymbara-backend/internal/models"
@@ -300,12 +302,18 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	var invalidExercises []string
 	for _, exercise := range request.Exercises {
 		if exercise.Reps <= 0 || exercise.Load <= 0 {
-			invalidExercises = append(invalidExercises, fmt.Sprintf("exercise_id: %d,", exercise.ExerciseID))
+			invalidExercises = append(invalidExercises,
+				fmt.Sprintf("Exercise ID %d: Reps=%d, Load=%d",
+					exercise.ExerciseID, exercise.Reps, exercise.Load))
 		}
 	}
 
 	if len(invalidExercises) > 0 {
-		utils.HandleError(w, fmt.Sprintf("Invalid reps or load for exercises: %v", invalidExercises), http.StatusBadRequest, nil)
+		utils.HandleError(w,
+			fmt.Sprintf("Invalid reps or load for exercises: %v",
+				strings.Join(invalidExercises, "; ")),
+			http.StatusBadRequest,
+			nil)
 		return
 	}
 
