@@ -14,7 +14,11 @@ func RegisterRoutes() {
 	const duration = time.Second
 
 	secureHandler := func(handler http.HandlerFunc) http.Handler {
-		return middleware.RateLimit(maxRequests, duration)(middleware.CORS(handler))
+		rateLimitedHandler := middleware.RateLimit(maxRequests, duration)
+		corsHandler := middleware.CORS
+		authHandler := middleware.AuthMiddleware
+
+		return rateLimitedHandler(corsHandler(authHandler(handler)))
 	}
 
 	// Workout routes

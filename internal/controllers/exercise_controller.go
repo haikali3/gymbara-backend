@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
+	"github.com/haikali3/gymbara-backend/internal/middleware"
 	"github.com/haikali3/gymbara-backend/internal/models"
 	"github.com/haikali3/gymbara-backend/internal/utils"
 	"go.uber.org/zap"
@@ -254,21 +255,30 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if p := recover(); p != nil {
 			tx.Rollback()
+			utils.Logger.Error("Transaction rolled back due to panic", zap.Any("panic", p))
 			panic(p)
 		} else if err != nil {
 			tx.Rollback()
+			utils.Logger.Error("Transaction rolled back due to error", zap.Error(err))
 		} else {
-			tx.Commit()
+			if commitErr := tx.Commit(); commitErr != nil {
+				utils.Logger.Error("Transaction commit failed", zap.Error(commitErr))
+			} else {
+				utils.Logger.Info("Transaction committed successfully")
+			}
 		}
 	}()
 
 	//validate user existence using OAuth email or ID
-	var userID int
-	err = tx.QueryRow(`
-		SELECT id FROM Users WHERE email = $1
-	`, request.UserEmail).Scan(&userID)
-	if err != nil {
-		utils.HandleError(w, "User not found. Please log in.", http.StatusUnauthorized, err)
+	userIDValue := r.Context().Value(middleware.UserIDKey)
+	if userIDValue == nil {
+		utils.HandleError(w, "Unable to extract user ID from request context", http.StatusUnauthorized, nil)
+		return
+	}
+
+	userID, ok := userIDValue.(int)
+	if !ok {
+		utils.HandleError(w, "Invalid user_id in request context", http.StatusUnauthorized, nil)
 		return
 	}
 
@@ -287,13 +297,19 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate each exercise ID and  insert or update custom details
+	var invalidExercises []string
 	for _, exercise := range request.Exercises {
-		//validate input
 		if exercise.Reps <= 0 || exercise.Load <= 0 {
-			utils.HandleError(w, fmt.Sprintf("Invalid reps or load for exercise_id: %d", exercise.ExerciseID), http.StatusBadRequest, nil)
-			return
+			invalidExercises = append(invalidExercises, fmt.Sprintf("exercise_id: %d,", exercise.ExerciseID))
 		}
+	}
 
+	if len(invalidExercises) > 0 {
+		utils.HandleError(w, fmt.Sprintf("Invalid reps or load for exercises: %v", invalidExercises), http.StatusBadRequest, nil)
+		return
+	}
+
+	for _, exercise := range request.Exercises {
 		//check exercise id exist
 		var exerciseExists bool
 		err = tx.QueryRow(`

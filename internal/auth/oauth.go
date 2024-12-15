@@ -159,6 +159,50 @@ func fetchUserInfo(ctx context.Context, token *oauth2.Token) (models.GoogleUser,
 	return userInfo, nil
 }
 
+func ValidateToken(accessToken string) (int, error) {
+	ctx := context.Background()
+
+	client := GoogleOauthConfig.Client(ctx, &oauth2.Token{
+		AccessToken: accessToken,
+	})
+
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		utils.Logger.Error("Token validation failed", zap.Error(err))
+		return 0, fmt.Errorf("error validating token: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		utils.Logger.Error("Token validation unsuccessful",
+			zap.Int("status_code", resp.StatusCode))
+		return 0, fmt.Errorf("token validation unsuccessful: %v", resp.StatusCode)
+	}
+
+	var userInfo models.GoogleUser
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		utils.Logger.Error("Error decoding user info", zap.Error(err))
+		return 0, fmt.Errorf("error decoding user info: %v", err)
+	}
+
+	//fetch user ID from db using email
+	var userID int
+	err = database.DB.QueryRow("SELECT id FROM users WHERE email = $1", userInfo.Email).Scan(&userID)
+
+	if err != nil {
+		utils.Logger.Error("User not found",
+			zap.String("user_email", userInfo.Email),
+			zap.Error(err))
+		return 0, fmt.Errorf("error fetching user ID: %v", err)
+	}
+
+	utils.Logger.Info("Token validated successfully",
+		zap.String("user_email", userInfo.Email),
+		zap.Int("user_id", userID))
+
+	return userID, nil
+}
+
 // Helper function to validate OAuth state for CSRF protection
 func validateOAuthState(r *http.Request) bool {
 	stateCookie, err := r.Cookie("oauthstate")
