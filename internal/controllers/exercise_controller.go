@@ -15,7 +15,15 @@ import (
 func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 	query := "SELECT id, name, route FROM WorkoutSections"
 
-	rows, err := database.DB.Query(query)
+	stmt, err := database.DB.Prepare(query)
+	if err != nil {
+		utils.HandleError(w, "Unable to prepare statement", http.StatusInternalServerError, err)
+		return
+	}
+	defer stmt.Close()
+
+	// use prepared statement
+	rows, err := stmt.Query()
 	if err != nil {
 		utils.HandleError(w, "Unable to query workout sections", http.StatusInternalServerError, err)
 		return
@@ -31,6 +39,11 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 		}
 		workoutSections = append(workoutSections, workoutSection)
 	}
+	if len(workoutSections) == 0 {
+		utils.HandleError(w, "No workout sections found", http.StatusNotFound, nil)
+		return
+	}
+
 	utils.WriteJSONResponse(w, http.StatusOK, workoutSections)
 }
 
@@ -48,8 +61,18 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
         FROM Exercises e
         JOIN ExerciseDetails ed ON e.id = ed.exercise_id
         WHERE e.workout_section_id = $1
-    `
-	rows, err := database.DB.Query(query, workoutSectionID)
+  `
+
+	//prepare statement to avoid sql injection
+	stmt, err := database.DB.Prepare(query)
+	if err != nil {
+		utils.HandleError(w, "Unable to prepare statement for querying exercises", http.StatusInternalServerError, err)
+		return
+	}
+	defer stmt.Close()
+
+	// use prepared statement
+	rows, err := stmt.Query(workoutSectionID)
 	if err != nil {
 		utils.HandleError(w, "Unable to query exercise basic details", http.StatusInternalServerError, err)
 		return
@@ -145,7 +168,14 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 				ws.id, e.id;
     `, placeholders)
 
-	rows, err := database.DB.Query(query, args...)
+	stmt, err := database.DB.Prepare(query)
+	if err != nil {
+		utils.HandleError(w, "Unable to prepare statement for querying workout sections and exercises", http.StatusInternalServerError, err)
+		return
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(args...)
 	if err != nil {
 		utils.HandleError(w, fmt.Sprintf("Unable to query workout sections and exercises for workout_section_ids: %v. Query: %s", workoutSectionIDs, query), http.StatusInternalServerError, err)
 		return

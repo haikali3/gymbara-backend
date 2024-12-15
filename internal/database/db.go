@@ -68,3 +68,13 @@ func StoreUserWithToken(user models.GoogleUser, accessToken string) error {
 	`, user.Name, user.Email, "google", user.ID, accessToken)
 	return err
 }
+
+func Close() {
+	if DB != nil {
+		if err := DB.Close(); err != nil {
+			utils.Logger.Error("Failed to close database connection", zap.Error(err))
+		} else {
+			utils.Logger.Info("Database connection closed successfully.")
+		}
+	}
+}

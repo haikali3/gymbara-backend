@@ -24,8 +24,12 @@ func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 }
 
 func HandleError(w http.ResponseWriter, msg string, status int, err error) {
-	http.Error(w, msg, status)
+	response := map[string]interface{}{
+		"error":  msg,
+		"status": status,
+	}
 	if err != nil {
+		response["details"] = err.Error()
 		Logger.Error(msg,
 			zap.Int("status", status),
 			zap.Error(err),
@@ -33,6 +37,15 @@ func HandleError(w http.ResponseWriter, msg string, status int, err error) {
 	} else {
 		Logger.Error(msg,
 			zap.Int("status", status))
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		Logger.Error("Failed to encode JSON response",
+			zap.Error(err),
+			zap.Int("status", http.StatusInternalServerError),
+		)
 	}
 }
 
