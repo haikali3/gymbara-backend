@@ -278,7 +278,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := userIDValue.(int)
 	if !ok {
-		utils.HandleError(w, "Invalid user_id in request context", http.StatusUnauthorized, nil)
+		utils.HandleError(w, "Invalid user ID type in request context", http.StatusUnauthorized, nil)
 		return
 	}
 
