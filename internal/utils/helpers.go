@@ -63,7 +63,6 @@ func GeneratePlaceholders(count int) (string, []interface{}) {
 	return strings.Join(placeholders, ","), args
 }
 
-// HasDuplicateExerciseIDs checks for duplicate exercise IDs in the input.
 func HasDuplicateExerciseIDs(exercises []models.UserExerciseInput) (int, bool) {
 	seen := make(map[int]bool)
 	for _, exercise := range exercises {
