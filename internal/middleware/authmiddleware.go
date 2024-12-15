@@ -17,7 +17,7 @@ const UserIDKey contextKey = "user_id"
 
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// extract and validate access token form cookie
+		// extract and validate access token from cookie
 		accessToken, err := r.Cookie("access_token")
 		if err != nil {
 			utils.Logger.Error("Access token cookie missing", zap.Error(err))

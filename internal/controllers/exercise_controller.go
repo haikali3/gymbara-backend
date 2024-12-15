@@ -274,7 +274,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	//validate user existence using OAuth email or ID
 	userIDValue := r.Context().Value(middleware.UserIDKey)
 	if userIDValue == nil {
-		utils.HandleError(w, "Unable to extract user ID from request context", http.StatusUnauthorized, nil)
+		utils.HandleError(w, "User ID missing or invalid in request context", http.StatusUnauthorized, nil)
 		return
 	}
 
