@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"time"
 
 	oauth "github.com/haikali3/gymbara-backend/internal/auth"
 	"github.com/haikali3/gymbara-backend/internal/controllers"
@@ -9,19 +10,26 @@ import (
 )
 
 func RegisterRoutes() {
+	const maxRequests = 10
+	const duration = time.Second
+
+	secureHandler := func(handler http.HandlerFunc) http.Handler {
+		return middleware.RateLimit(maxRequests, duration)(middleware.CORS(handler))
+	}
+
 	// Workout routes
-	http.Handle("/workout-sections", middleware.CORS(http.HandlerFunc(controllers.GetWorkoutSections)))                             // Get all workout sections
-	http.Handle("/workout-sections/list", middleware.CORS(http.HandlerFunc(controllers.GetExercisesList)))                          // Get basic list of exercises
-	http.Handle("/workout-sections/details", middleware.CORS(http.HandlerFunc(controllers.GetExerciseDetails)))                     // Get detailed exercise info
-	http.Handle("/workout-sections/with-exercises", middleware.CORS(http.HandlerFunc(controllers.GetWorkoutSectionsWithExercises))) // Get workout sections with exercises
+	http.Handle("/workout-sections", secureHandler(controllers.GetWorkoutSections))
+	http.Handle("/workout-sections/list", secureHandler(controllers.GetExercisesList))
+	http.Handle("/workout-sections/details", secureHandler(controllers.GetExerciseDetails))
+	http.Handle("/workout-sections/with-exercises", secureHandler(controllers.GetWorkoutSectionsWithExercises))
 
-	//user submit exercise details
-	http.Handle("/workout-sections/user-exercise-details", middleware.CORS(http.HandlerFunc(controllers.SubmitUserExerciseDetails)))
-
-	// OAuth routes
-	http.HandleFunc("/oauth/login", oauth.GoogleLoginHandler)
-	http.HandleFunc("/oauth/callback", oauth.GoogleCallbackHandler)
+	//User submit exercise details
+	http.Handle("/workout-sections/user-exercise-details", secureHandler(controllers.SubmitUserExerciseDetails))
 
 	//fetch user details
-	http.Handle("/api/user-info", middleware.CORS(http.HandlerFunc(controllers.GetUserInfoHandler)))
+	http.Handle("/api/user-info", secureHandler(controllers.GetUserInfoHandler))
+
+	// OAuth routes
+	http.Handle("/oauth/login", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleLoginHandler)))
+	http.Handle("/oauth/callback", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleCallbackHandler)))
 }

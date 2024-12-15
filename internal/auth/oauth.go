@@ -29,7 +29,7 @@ const (
 var GoogleOauthConfig *oauth2.Config
 
 // initializes the OAuth configuration using env variables
-func InitializeOAuthConfig() {
+func InitializeOAuthConfig() error {
 	backendBaseURL := os.Getenv("BACKEND_BASE_URL")
 	if backendBaseURL == "" {
 		utils.Logger.Fatal("BACKEND_BASE_URL is not set in the environment variables")
@@ -46,6 +46,7 @@ func InitializeOAuthConfig() {
 	utils.Logger.Info("OAuth configuration initialized",
 		zap.String("redirect_url", GoogleOauthConfig.RedirectURL),
 	)
+	return nil
 }
 
 // creates a state token to prevent CSRF attacks -> stores it in a cookie
@@ -70,7 +71,9 @@ func GenerateStateOAuthCookie(w http.ResponseWriter) string {
 // redirects the user to Google’s OAuth login
 func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 	if GoogleOauthConfig == nil {
-		InitializeOAuthConfig()
+		if err := InitializeOAuthConfig(); err != nil {
+			utils.Logger.Fatal("Failed to initialize OAuth config", zap.Error(err))
+		}
 	}
 
 	oauthStateString := GenerateStateOAuthCookie(w)
@@ -157,15 +160,6 @@ func fetchUserInfo(ctx context.Context, token *oauth2.Token) (models.GoogleUser,
 }
 
 // Helper function to validate OAuth state for CSRF protection
-// validateOAuthState checks the validity of the OAuth state parameter in the request.
-// It retrieves the "oauthstate" cookie from the request and compares its value with the "state" form value.
-// If the cookie is not found or the values do not match, it logs an error and returns false.
-// If the values match, it logs a debug message and returns true.
-//
-// Parameters: r - The HTTP request containing the OAuth state parameter and cookies.
-//
-// Returns: bool - true if the OAuth state is valid, false otherwise.
-
 func validateOAuthState(r *http.Request) bool {
 	stateCookie, err := r.Cookie("oauthstate")
 	if err != nil || r.FormValue("state") != stateCookie.Value {

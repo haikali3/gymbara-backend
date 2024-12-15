@@ -26,10 +26,10 @@ func loadEnv() {
 	}
 
 	wd, _ := os.Getwd()
-	fmt.Println("Current Working Directory:", wd)
+	utils.Logger.Info("Current Working Directory", zap.String("path", wd))
 
 	envFile := fmt.Sprintf("../.env.%s", env) //beware of the path for .env
-	log.Printf("Loading environment: %s from file: %s\n", env, envFile)
+	utils.Logger.Info("Loading environment file", zap.String("environment", env), zap.String("file", envFile))
 
 	err := godotenv.Load(envFile)
 	if err != nil {
@@ -98,6 +98,8 @@ func main() {
 	)
 
 	database.Connect(cfg) // Pass config to database connection function
+	defer database.Close()
+
 	routes.RegisterRoutes()
 
 	utils.Logger.Info("Starting server on :8080...")
