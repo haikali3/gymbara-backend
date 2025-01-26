@@ -61,7 +61,7 @@ func GenerateStateOAuthCookie(w http.ResponseWriter) string {
 		Expires:  time.Now().Add(24 * time.Hour),
 		Path:     "/",
 		Secure:   true,
-		HttpOnly: true, // ? change if https?
+		HttpOnly: true,
 	})
 
 	utils.Logger.Debug("Generated OAuth state cookie", zap.String("oauth_state", oauthStateString))
