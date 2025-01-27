@@ -55,18 +55,31 @@ func StoreUserInDB(user models.GoogleUser, provider string) (int, error) {
 	return userID, nil
 }
 
-func StoreUserWithToken(user models.GoogleUser, accessToken string) error {
+func StoreUserWithToken(user models.GoogleUser, accessToken string, refreshToken string) error {
 	//TODO: is it normal for this access token will update current row and also other row for column access token?
-	// im not sure...
-	utils.Logger.Info("Updating user with access token", zap.String("email", user.Email), zap.String("accessToken", accessToken))
+	utils.Logger.Debug("Updating user with access and refresh tokens",
+		zap.String("email", user.Email),
+		zap.String("accessToken", accessToken),
+		zap.String("refreshToken", refreshToken),
+		// zap.String("accessToken", "***"), // Mask sensitive data in logs
+		// zap.String("refreshToken", "***"),
+	)
 
 	_, err := DB.Exec(`
-			INSERT INTO Users (username, email, oauth_provider, oauth_id, access_token)
-			VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO Users (username, email, oauth_provider, oauth_id, access_token, refresh_token)
+			VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (email) DO UPDATE
-			SET username = EXCLUDED.username, access_token = EXCLUDED.access_token
-	`, user.Name, user.Email, "google", user.ID, accessToken)
-	return err
+			SET username = EXCLUDED.username, 
+					access_token = EXCLUDED.access_token,
+					refresh_token = COALESCE(NULLIF(EXCLUDED.refresh_token, ''), Users.refresh_token)
+	`, user.Name, user.Email, "google", user.ID, accessToken, refreshToken)
+
+	if err != nil {
+		utils.Logger.Error("Failed to store user with token", zap.Error(err))
+		return fmt.Errorf("failed to store user with token: %w", err)
+	}
+
+	return nil
 }
 
 func Close() {
