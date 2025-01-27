@@ -329,7 +329,8 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		//execute upsert query
+		//TODO: use batch SQL Query
+		//execute upsert for each exercise
 		_, err = tx.Exec(`
 		INSERT INTO UserExercisesDetails (user_workout_id, exercise_id, custom_reps, custom_load, submitted_at)
 		VALUES ($1, $2, $3, $4, CURRENT_DATE)
