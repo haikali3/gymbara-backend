@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -77,7 +78,7 @@ func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	oauthStateString := GenerateStateOAuthCookie(w)
-	authURL := GoogleOauthConfig.AuthCodeURL(oauthStateString)
+	authURL := GoogleOauthConfig.AuthCodeURL(oauthStateString, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 	utils.Logger.Info("Redirecting to Google OAuth URL", zap.String("auth_url", authURL))
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
@@ -106,10 +107,16 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not get token", http.StatusInternalServerError)
 		return
 	}
+	//track flow of access and refresh token
 	utils.Logger.Info("OAuth state validated", zap.String("state", r.FormValue("state")))
+	utils.Logger.Debug("Token received from Google",
+		zap.String("access_token", token.AccessToken),
+		zap.String("refresh_token", token.RefreshToken),
+		zap.Time("expiry", token.Expiry),
+	)
 
 	//get user info from google's api
-	utils.Logger.Info("Fetching user info for token", zap.String("access_token", token.AccessToken)) // Add this log
+	utils.Logger.Info("Fetching user info for token", zap.String("access_token", token.AccessToken))
 	userInfo, err := fetchUserInfo(context.Background(), token)
 	if err != nil {
 		utils.Logger.Error("Error fetching user info", zap.Error(err))
@@ -117,7 +124,8 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = database.StoreUserWithToken(userInfo, token.AccessToken)
+	// store user with access token and refresh token
+	err = database.StoreUserWithToken(userInfo, token.AccessToken, token.RefreshToken)
 	if err != nil {
 		utils.Logger.Error("Error storing user in DB", zap.Error(err))
 		http.Error(w, "Failed to store user info", http.StatusInternalServerError)
@@ -128,7 +136,7 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    token.AccessToken,
-		Expires:  time.Now().Add(time.Until(token.Expiry)), // This is more readable
+		Expires:  time.Now().Add(time.Until(token.Expiry)),
 		HttpOnly: true,
 		Secure:   true, // Set to true if using HTTPS
 		Path:     "/",
@@ -138,8 +146,38 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, getFrontendURL(), http.StatusSeeOther)
 }
 
-//TODO: create get access token
-//TODO: create refresh token
+// TODO: create refresh token
+func RefreshAccessToken(refreshToken string) (*oauth2.Token, error) {
+	token := &oauth2.Token{
+		RefreshToken: refreshToken,
+		Expiry:       time.Now().Add(-time.Hour), //force token to expired
+	}
+
+	utils.Logger.Debug("Attempting to refresh access token", zap.String("refresh_token", refreshToken))
+
+	newToken, err := GoogleOauthConfig.TokenSource(context.Background(), token).Token()
+	if err != nil {
+		utils.Logger.Error("Failed to refresh access token", zap.Error(err))
+		return nil, err
+	}
+
+	utils.Logger.Info("Access token refreshed successfully",
+		zap.String("new_access_token", newToken.AccessToken),
+		zap.String("new_refresh_token", newToken.RefreshToken),
+		zap.Time("expiry", newToken.Expiry),
+	)
+
+	return newToken, nil
+}
+
+func UpdateAccessToken(email, accessToken string) error {
+	_, err := database.DB.Exec(`
+		UPDATE Users
+		SET access_token = $1
+		WHERE email = $2
+	`, accessToken, email)
+	return err
+}
 
 // retrieves the user's info from Google
 func fetchUserInfo(ctx context.Context, token *oauth2.Token) (models.GoogleUser, error) {
@@ -171,15 +209,47 @@ func ValidateToken(accessToken string) (int, error) {
 		return 0, err
 	}
 
+	//check if token expired
+	if token.Expiry.Before(time.Now()) {
+		// fetch refresh token from db
+		var refreshToken sql.NullString
+		err = database.DB.QueryRow("SELECT refresh_token FROM users WHERE email = $1", userInfo.Email).Scan(&refreshToken)
+		if err != nil {
+			utils.Logger.Error("Failed to fetch refresh token", zap.Error(err))
+			return 0, err
+		}
+
+		if !refreshToken.Valid || refreshToken.String == "" {
+			utils.Logger.Error("Refresh token is missing or invalid",
+				zap.String("user_email", userInfo.Email),
+				zap.String("refresh_token", refreshToken.String),
+			)
+			return 0, fmt.Errorf("refresh token is missing or invalid")
+		}
+
+		//refresh the access token
+		newToken, err := RefreshAccessToken(refreshToken.String)
+		if err != nil {
+			utils.Logger.Error("Failed to refresh access token", zap.Error(err))
+			return 0, err
+		}
+
+		//update access token in db
+		err = UpdateAccessToken(userInfo.Email, newToken.AccessToken)
+		if err != nil {
+			utils.Logger.Error("Failed to update access token in the database", zap.Error(err))
+			return 0, err
+		}
+	}
+
 	//fetch user ID from db using email
 	var userID int
 	err = database.DB.QueryRow("SELECT id FROM users WHERE email = $1", userInfo.Email).Scan(&userID)
-
 	if err != nil {
 		utils.Logger.Error("User not found",
 			zap.String("user_email", userInfo.Email),
 			zap.Error(err))
-		return 0, fmt.Errorf("error fetching user ID: %v", err)
+		return 0, err
 	}
 
 	utils.Logger.Info("Token validated successfully",

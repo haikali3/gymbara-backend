@@ -275,6 +275,15 @@ SERVER_PORT=8080
 
 Set up Goose for migrations:
 
+1. Create script
+
+```bash
+goose create add_users_table sql
+goose create <script_name> sql
+```
+
+
+2. Apply goose migrations:
 ```bash
 export DATABASE_URL="postgres://user:password@host:5432/dbname?sslmode=disable"
 goose up                    # Apply migrations
