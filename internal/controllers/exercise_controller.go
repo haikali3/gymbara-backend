@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"strings"
 
@@ -330,10 +331,10 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 		//execute upsert query
 		_, err = tx.Exec(`
-		INSERT INTO UserExercisesDetails (user_workout_id, exercise_id, custom_reps, custom_load)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO UserExercisesDetails (user_workout_id, exercise_id, custom_reps, custom_load, submitted_at)
+		VALUES ($1, $2, $3, $4, CURRENT_DATE)
 		ON CONFLICT (user_workout_id, exercise_id) DO UPDATE
-		SET custom_reps = $3, custom_load = $4
+		SET custom_reps = $3, custom_load = $4, submitted_at = CURRENT_DATE
 	`, userWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
 		if err != nil {
 			utils.HandleError(w, "failed to insert or update user exercise details", http.StatusInternalServerError, err)
@@ -343,10 +344,12 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 	var updatedExercises []models.UserExerciseInput
 	for _, exercise := range request.Exercises {
+
 		updatedExercises = append(updatedExercises, models.UserExerciseInput{
-			ExerciseID: exercise.ExerciseID,
-			Reps:       exercise.Reps,
-			Load:       exercise.Load,
+			ExerciseID:  exercise.ExerciseID,
+			Reps:        exercise.Reps,
+			Load:        exercise.Load,
+			SubmittedAt: time.Now(),
 		})
 	}
 	// return success response
