@@ -6,7 +6,6 @@ CREATE TABLE Users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50),
     email VARCHAR(100),
-    password_hash VARCHAR(255),
     oauth_provider VARCHAR(50),
     oauth_id VARCHAR(100),
     is_premium BOOLEAN DEFAULT FALSE
