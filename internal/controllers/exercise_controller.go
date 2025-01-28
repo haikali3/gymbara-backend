@@ -233,6 +233,8 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSONResponse(w, http.StatusOK, sections)
 }
 
+// User submit on the same day = UPDATE
+// User submit on the different day = INSERT new record
 func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	var request models.UserExerciseRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -314,15 +316,15 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("Exercise ID %d: Reps=%d, Load=%d",
 					exercise.ExerciseID, exercise.Reps, exercise.Load))
 		}
+	}
 
-		if len(invalidExercises) > 0 {
-			utils.HandleError(w,
-				fmt.Sprintf("Invalid reps or load for exercises: %v",
-					strings.Join(invalidExercises, "; ")),
-				http.StatusBadRequest,
-				nil)
-			return
-		}
+	if len(invalidExercises) > 0 {
+		utils.HandleError(w,
+			fmt.Sprintf("Invalid reps or load for exercises: %v",
+				strings.Join(invalidExercises, "; ")),
+			http.StatusBadRequest,
+			nil)
+		return
 	}
 
 	for _, exercise := range request.Exercises {
@@ -341,7 +343,8 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		_, err = tx.Exec(`
 		INSERT INTO UserExercisesDetails (user_workout_id, exercise_id, custom_reps, custom_load, submitted_at)
 		VALUES ($1, $2, $3, $4, CURRENT_DATE)
-		ON CONFLICT DO NOTHING
+		ON CONFLICT (user_workout_id, exercise_id, submitted_at)
+		DO UPDATE SET custom_reps = $3, custom_load = $4
 	`, userWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
 		if err != nil {
 			utils.HandleError(w, "Failed to insert user exercise details", http.StatusInternalServerError, err)
@@ -354,12 +357,6 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 			Load:        exercise.Load,
 			SubmittedAt: time.Now(),
 		})
-	}
-
-	// handle validation errors
-	if len(invalidExercises) > 0 {
-		utils.HandleError(w, fmt.Sprintf("Invalid exercises: %s", strings.Join(invalidExercises, "; ")), http.StatusBadRequest, nil)
-		return
 	}
 
 	// return success response
