@@ -233,6 +233,8 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSONResponse(w, http.StatusOK, sections)
 }
 
+// User submit on the same day = UPDATE
+// User submit on the different day = INSERT new record
 func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	var request models.UserExerciseRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -252,6 +254,20 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//validate user existence using OAuth email or ID
+	userIDValue := r.Context().Value(middleware.UserIDKey)
+	if userIDValue == nil {
+		utils.HandleError(w, "User ID missing or invalid in request context", http.StatusUnauthorized, nil)
+		return
+	}
+
+	userID, ok := userIDValue.(int)
+	if !ok {
+		utils.HandleError(w, "Invalid user ID type in request context", http.StatusUnauthorized, nil)
+		return
+	}
+
+	//TODO: Validate all inputs (e.g., section_id, exercise_id, reps, load) upfront, before starting the transaction.
 	// begin db transaction
 	tx, err := database.DB.Begin()
 	if err != nil {
@@ -277,20 +293,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	//validate user existence using OAuth email or ID
-	userIDValue := r.Context().Value(middleware.UserIDKey)
-	if userIDValue == nil {
-		utils.HandleError(w, "User ID missing or invalid in request context", http.StatusUnauthorized, nil)
-		return
-	}
-
-	userID, ok := userIDValue.(int)
-	if !ok {
-		utils.HandleError(w, "Invalid user ID type in request context", http.StatusUnauthorized, nil)
-		return
-	}
-
-	//check UserWorkout exist, create if not
+	//create if UserWorkouts doenst exist
 	var userWorkoutID int
 	err = tx.QueryRow(`
 		INSERT INTO UserWorkouts (user_id, section_id)
@@ -306,6 +309,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 	// validate each exercise ID and  insert or update custom details
 	var invalidExercises []string
+	var insertedExercises []models.UserExerciseInput
 	for _, exercise := range request.Exercises {
 		if exercise.Reps <= 0 || exercise.Load <= 0 {
 			invalidExercises = append(invalidExercises,
@@ -335,33 +339,30 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		}
 
 		//TODO: use batch SQL Query
-		//execute upsert for each exercise
+		// insert new exercise details
 		_, err = tx.Exec(`
 		INSERT INTO UserExercisesDetails (user_workout_id, exercise_id, custom_reps, custom_load, submitted_at)
 		VALUES ($1, $2, $3, $4, CURRENT_DATE)
-		ON CONFLICT (user_workout_id, exercise_id) DO UPDATE
-		SET custom_reps = $3, custom_load = $4, submitted_at = CURRENT_DATE
+		ON CONFLICT (user_workout_id, exercise_id, submitted_at)
+		DO UPDATE SET custom_reps = $3, custom_load = $4
 	`, userWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
 		if err != nil {
-			utils.HandleError(w, "failed to insert or update user exercise details", http.StatusInternalServerError, err)
+			utils.HandleError(w, "Failed to insert user exercise details", http.StatusInternalServerError, err)
 			return
 		}
-	}
 
-	var updatedExercises []models.UserExerciseInput
-	for _, exercise := range request.Exercises {
-
-		updatedExercises = append(updatedExercises, models.UserExerciseInput{
+		insertedExercises = append(insertedExercises, models.UserExerciseInput{
 			ExerciseID:  exercise.ExerciseID,
 			Reps:        exercise.Reps,
 			Load:        exercise.Load,
 			SubmittedAt: time.Now(),
 		})
 	}
+
 	// return success response
 	utils.WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{
-		"message":           "user exercise details submitted successfully",
-		"user_workout_id":   userWorkoutID,
-		"updated_exercises": updatedExercises,
+		"message":            "user exercise details submitted successfully",
+		"user_workout_id":    userWorkoutID,
+		"inserted_exercises": insertedExercises,
 	})
 }
