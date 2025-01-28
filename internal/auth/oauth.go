@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
-	"github.com/haikali3/gymbara-backend/internal/models"
-	"github.com/haikali3/gymbara-backend/internal/utils"
+	"github.com/haikali3/gymbara-backend/pkg/models"
+	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"

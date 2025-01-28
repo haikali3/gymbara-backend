@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/haikali3/gymbara-backend/internal/utils"
+	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"go.uber.org/zap"
 )
 

@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/haikali3/gymbara-backend/internal/auth"
-	"github.com/haikali3/gymbara-backend/internal/utils"
+	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"go.uber.org/zap"
 )
 

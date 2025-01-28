@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/haikali3/gymbara-backend/config"
-	"github.com/haikali3/gymbara-backend/internal/models"
-	"github.com/haikali3/gymbara-backend/internal/utils"
+	"github.com/haikali3/gymbara-backend/pkg/models"
+	"github.com/haikali3/gymbara-backend/pkg/utils"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
