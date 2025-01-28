@@ -44,15 +44,15 @@ This backend service provides APIs for:
 │   │   ├── authmiddleware.go
 │   │   ├── cors.go
 │   │   └── rate_limit.go
+│   └── routes/               # Route definitions
+│       └── routes.go
+├── pkg/                      # Shared utilities and helpers 
 │   ├── models/               # Data models
 │   │   ├── google_user.go
 │   │   └── exercise.go
-│   └── routes/               # Route definitions
-│   │   └── routes.go
 │   └── utils/                # Utility functions
 │       ├── helpers.go
 │       └── logger.go         # Added zap logger
-├── pkg/                      # External reusable code (if needed)
 ├── .env.example              # Example environment variables file
 ├── go.mod                    # Go module definition
 ├── go.sum                    # Go module dependencies
