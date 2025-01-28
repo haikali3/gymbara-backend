@@ -11,7 +11,7 @@ import (
 	"github.com/haikali3/gymbara-backend/config"
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/routes"
-	"github.com/haikali3/gymbara-backend/internal/utils"
+	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"go.uber.org/zap"
 
 	"github.com/joho/godotenv"
