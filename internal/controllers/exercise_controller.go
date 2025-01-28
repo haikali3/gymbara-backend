@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"strings"
@@ -186,7 +187,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	// Map the results to the desired JSON structure
+	//map is unordered lol
 	sectionsMap := make(map[int]*models.WorkoutSectionWithExercises)
 	for rows.Next() {
 		var sectionID int
@@ -215,7 +216,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Add the exercise to the section
-		if exercise.ID != 0 { // Only add exercises if the ID is valid
+		if exercise.ID != 0 {
 			sectionsMap[sectionID].Exercises = append(sectionsMap[sectionID].Exercises, exercise)
 		}
 	}
@@ -224,6 +225,10 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	for _, section := range sectionsMap {
 		sections = append(sections, *section)
 	}
+
+	sort.Slice(sections, func(i, j int) bool {
+		return sections[i].ID < sections[j].ID
+	})
 
 	utils.WriteJSONResponse(w, http.StatusOK, sections)
 }
