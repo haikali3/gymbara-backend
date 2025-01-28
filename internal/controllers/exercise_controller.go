@@ -252,6 +252,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//TODO: Validate all inputs (e.g., section_id, exercise_id, reps, load) upfront, before starting the transaction.
 	// begin db transaction
 	tx, err := database.DB.Begin()
 	if err != nil {
@@ -335,6 +336,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		}
 
 		//TODO: use batch SQL Query
+		//! how to handle if user add new exercise? it should INSERT only for Date(to track progress)
 		//execute upsert for each exercise
 		_, err = tx.Exec(`
 		INSERT INTO UserExercisesDetails (user_workout_id, exercise_id, custom_reps, custom_load, submitted_at)
