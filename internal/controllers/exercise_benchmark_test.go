@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/haikali3/gymbara-backend/pkg/models"
+	"github.com/haikali3/gymbara-backend/pkg/utils"
+	"go.uber.org/zap"
 )
 
 // Sample test request body
@@ -25,8 +27,15 @@ func generateRequestBody(reqData models.UserExerciseRequest) *bytes.Buffer {
 	return bytes.NewBuffer(body)
 }
 
+func setupBenchmark() {
+	// Initialize zap logger
+	utils.Logger, _ = zap.NewDevelopment()
+}
+
 // Benchmark for SubmitUserExerciseDetails
 func BenchmarkSubmitUserExerciseDetails(b *testing.B) {
+	setupBenchmark()
+
 	reqBody := generateRequestBody(sampleRequest)
 
 	// Create a test HTTP request
