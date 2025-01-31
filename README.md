@@ -291,6 +291,14 @@ goose down                  # Rollback last migration
 goose status               # Check migration status
 ```
 
+#### 5. Testing
+To run the tests with benchmarks and memory allocation statistics, use the following command:
+
+```bash
+go test -bench . -benchmem
+```
+This command will execute all benchmarks in the current package and provide detailed memory allocation information.
+
 ## Security Considerations
 
 1. CORS Configuration (routes/routes.go):
