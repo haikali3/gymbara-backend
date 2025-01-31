@@ -22,7 +22,11 @@ import (
 )
 
 func parseDate(dateStr string) time.Time {
-	t, _ := time.Parse("2006-01-02", dateStr)
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		log.Printf("Error parsing date: %v", err)
+		return time.Time{}
+	}
 	return t
 }
 
@@ -37,7 +41,6 @@ var sampleRequest = models.UserExerciseRequest{
 		{ExerciseID: 6, Reps: 15, Load: 70, SubmittedAt: parseDate("2025-02-01")},
 		{ExerciseID: 7, Reps: 15, Load: 70, SubmittedAt: parseDate("2025-02-01")},
 		{ExerciseID: 8, Reps: 15, Load: 70, SubmittedAt: parseDate("2025-02-01")},
-		{ExerciseID: 9, Reps: 15, Load: 70, SubmittedAt: parseDate("2025-02-01")},
 		{ExerciseID: 10, Reps: 15, Load: 70, SubmittedAt: parseDate("2025-02-01")},
 		{ExerciseID: 11, Reps: 15, Load: 70, SubmittedAt: parseDate("2025-02-01")},
 		{ExerciseID: 12, Reps: 15, Load: 70, SubmittedAt: parseDate("2025-02-01")},
@@ -65,7 +68,7 @@ func setupBenchmark() {
 		}
 	}
 
-	// ⚠️ If no `.env` is found, warn but don't exit
+	// If no `.env` is found, warn but don't exit
 	if err != nil {
 		log.Println("⚠️ Warning: No .env file found. Using default environment variables.")
 	}
@@ -93,9 +96,13 @@ func setupBenchmark() {
 	}
 }
 
-func generateRequestBody(reqData models.UserExerciseRequest) *bytes.Buffer {
-	body, _ := json.Marshal(reqData)
+func generateRequestBody(reqData models.UserExerciseRequest, tb testing.TB) *bytes.Buffer {
+	body, err := json.Marshal(reqData)
+	if err != nil {
+		tb.Fatalf("Failed to marshal request data: %v", err)
+	}
 	return bytes.NewBuffer(body)
+
 }
 
 func cleanupTestData() {
@@ -112,7 +119,7 @@ func cleanupTestData() {
 func BenchmarkSubmitUserExerciseDetails(b *testing.B) {
 	setupBenchmark()
 
-	reqBody := generateRequestBody(sampleRequest)
+	reqBody := generateRequestBody(sampleRequest, b)
 	req, err := http.NewRequest("POST", "/api/submit-exercise", reqBody)
 	if err != nil {
 		b.Fatalf("❌ Failed to create request: %v", err)
@@ -131,7 +138,7 @@ func BenchmarkSubmitUserExerciseDetails(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		req.Body = io.NopCloser(generateRequestBody(sampleRequest))
+		req.Body = io.NopCloser(generateRequestBody(sampleRequest, b))
 		SubmitUserExerciseDetails(w, req)
 		w = httptest.NewRecorder()
 	}
