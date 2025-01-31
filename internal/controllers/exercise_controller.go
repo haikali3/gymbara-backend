@@ -233,8 +233,8 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSONResponse(w, http.StatusOK, sections)
 }
 
-// User submit on the same day = UPDATE
-// User submit on the different day = INSERT new record
+// Case 1: First-time submission (New row inserted)
+// Case 2: Duplicate submission on the same day (Row updated)
 func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	var request models.UserExerciseRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -343,9 +343,12 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		_, err = tx.Exec(`
 		INSERT INTO UserExercisesDetails (user_workout_id, exercise_id, custom_reps, custom_load, submitted_at)
 		VALUES ($1, $2, $3, $4, CURRENT_DATE)
-		ON CONFLICT (user_workout_id, exercise_id, submitted_at)
-		DO UPDATE SET custom_reps = $3, custom_load = $4
+		ON CONFLICT ON CONSTRAINT unique_user_exercise_submission
+		DO UPDATE
+		SET custom_reps = EXCLUDED.custom_reps,
+				custom_load = EXCLUDED.custom_load
 	`, userWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
+
 		if err != nil {
 			utils.HandleError(w, "Failed to insert user exercise details", http.StatusInternalServerError, err)
 			return
