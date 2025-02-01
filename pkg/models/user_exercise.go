@@ -29,33 +29,3 @@ func (u UserExerciseInput) MarshalJSON() ([]byte, error) {
 		Alias:       (*Alias)(&u),
 	})
 }
-
-// Custom JSON unmarshaller to parse `submitted_at` as `YYYY-MM-DD`
-func (u *UserExerciseInput) UnmarshalJSON(data []byte) error {
-	type Alias UserExerciseInput
-	aux := &struct {
-		SubmittedAt string `json:"submitted_at"`
-		*Alias
-	}{
-		Alias: (*Alias)(u),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	// // handle empty `submitted_at` field
-	// if aux.SubmittedAt == "" {
-	// 	u.SubmittedAt = time.Time{} // set to zero value of time.Time if empty
-	// 	return nil
-	// }
-
-	// Parse non-empty `submitted_at`
-	parsedTime, err := time.Parse("2006-01-02", aux.SubmittedAt)
-	if err != nil {
-		return err
-	}
-	u.SubmittedAt = parsedTime
-
-	return nil
-}
