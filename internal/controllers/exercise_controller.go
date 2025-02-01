@@ -352,6 +352,11 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 	utils.Logger.Info("Executing batch insert for user exercises", zap.Int("exercise_count", len(request.Exercises)))
 
+	if len(placeholders) == 0 {
+		utils.HandleError(w, "No valid exercises to insert", http.StatusBadRequest, nil)
+		return
+	}
+
 	// batch insert
 	if len(placeholders) > 0 {
 		query := fmt.Sprintf(`
@@ -369,9 +374,9 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 			utils.HandleError(w, "Failed to insert user exercise details", http.StatusInternalServerError, txErr)
 			return
 		}
-	}
 
-	utils.Logger.Debug("Batch insert query generated", zap.String("query", query))
+		utils.Logger.Debug("Batch insert query generated", zap.String("query", query))
+	}
 
 	// return success response
 	utils.WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{
