@@ -28,7 +28,7 @@ func loadEnv() {
 	wd, _ := os.Getwd()
 	utils.Logger.Info("Current Working Directory", zap.String("path", wd))
 
-	envFile := fmt.Sprintf("../.env.%s", env) //beware of the path for .env
+	envFile := fmt.Sprintf(".env.%s", env)
 	utils.Logger.Info("Loading environment file", zap.String("environment", env), zap.String("file", envFile))
 
 	err := godotenv.Load(envFile)

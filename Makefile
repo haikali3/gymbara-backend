@@ -7,12 +7,12 @@ APP_NAME := gymbara-backend
 all: run
 
 # Run the app in development
-run:
+run-dev:
 	echo 1 | go run cmd/main.go
 
-# Build the app
-build:
-	go build -o $(APP_NAME) cmd/main.go
+# Run the app in production
+run-prod:
+	echo 2 | go run cmd/main.go
 
 # Database migrations
 migrate-up:
@@ -29,14 +29,6 @@ migrate-up-to:
 
 migrate-down-to:
 	goose -dir internal/database/migrations postgres "$(DB_URL)" down-to $(VERSION)
-
-# Test the app
-test:
-	go test ./... -v
-
-# Format code
-fmt:
-	go fmt ./...
 
 # Lint code
 lint:

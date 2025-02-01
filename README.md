@@ -54,11 +54,10 @@ This backend service provides APIs for:
 │   │   └── exercise.go
 │   └── utils/                # Utility functions
 │       ├── helpers.go        # Helper functions(handle http errors, response, etc)
-│       └── logger.go         # Added zap logger
+│       └── logger.go         # Zap logger integration
 ├── .env.example              # Example environment variables file
-├── go.mod                    # Go module definition
-├── go.sum                    # Go module dependencies
 ├── README.md                 # Project documentation
+├── Makefile                  # Makefile for automating tasks
 └── Dockerfile                # Docker configuration (if needed)
 ```
 
@@ -101,18 +100,7 @@ DB_NAME=gymbara
 SERVER_PORT=8080
 ```
 
-5. Set the environment for development or production on your server
-
-```bash
-# For development
-export APP_ENV=development
-
-# For production
-export APP_ENV=production
-
-```
-
-6. Run the server:
+5. Run the server:
 
 ```bash
 go run main.go
