@@ -29,7 +29,7 @@ func PrepareStatements() {
     WHERE e.workout_section_id = $1
   `)
 	if err != nil {
-		utils.Logger.Fatal("Failed to prepare StmtGetWorkoutSections", zap.Error(err))
+		utils.Logger.Fatal("Failed to prepare StmtGetExercisesBySectionID", zap.Error(err))
 	}
 
 	StmtGetExerciseDetails, err = DB.Prepare(`
