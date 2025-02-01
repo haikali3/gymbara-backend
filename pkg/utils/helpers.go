@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/haikali3/gymbara-backend/pkg/models"
 	"go.uber.org/zap"
 )
 
@@ -61,20 +60,4 @@ func GeneratePlaceholders(count int) (string, []interface{}) {
 		zap.Strings("placeholders", placeholders),
 	)
 	return strings.Join(placeholders, ","), args
-}
-
-func HasDuplicateExerciseIDs(exercises []models.UserExerciseInput) (int, bool) {
-	seen := make(map[int]bool)
-	for _, exercise := range exercises {
-		if seen[exercise.ExerciseID] {
-			Logger.Warn("Duplicate exercise ID found",
-				zap.Int("exercise_id", exercise.ExerciseID))
-			return exercise.ExerciseID, true
-		}
-		seen[exercise.ExerciseID] = true
-	}
-	Logger.Debug("No duplicate exercise IDs found",
-		zap.Int("total_exercises", len(exercises)),
-	)
-	return 0, false // No duplicates
 }

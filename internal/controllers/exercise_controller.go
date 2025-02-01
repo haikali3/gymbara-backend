@@ -220,12 +220,6 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check for duplicate exercise IDs
-	if duplicateExerciseID, found := utils.HasDuplicateExerciseIDs(request.Exercises); found {
-		utils.HandleError(w, fmt.Sprintf("Duplicate(exercise_id: %d) found in request", duplicateExerciseID), http.StatusBadRequest, nil)
-		return
-	}
-
 	//validate user existence using OAuth email or ID
 	userIDValue := r.Context().Value(middleware.UserIDKey)
 	if userIDValue == nil {
@@ -281,14 +275,14 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// batch check for exercise existence
+	// batch(collect exercise id) and check if exercise exist
 	exerciseIDs := make([]int, len(request.Exercises))
 	for i, exercise := range request.Exercises {
 		exerciseIDs[i] = exercise.ExerciseID
 	}
 
-	queryPlaceholders := make([string], len(exerciseIDs))
-	queryValues := make ([]interface{}, len(exerciseIDs))
+	queryPlaceholders := make([]string, len(exerciseIDs))
+	queryValues := make([]interface{}, len(exerciseIDs))
 	for i, id := range exerciseIDs {
 		queryPlaceholders[i] = fmt.Sprintf("$%d", i+1)
 		queryValues[i] = id
@@ -297,7 +291,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	query := fmt.Sprintf(`SELECT id FROM Exercises WHERE id IN (%s)`, strings.Join(queryPlaceholders, ","))
 	rows, txErr := tx.Query(query, queryValues...)
 	if txErr != nil {
-		utils.HandleError(w, "Falied to validate exercise IDs", http.StatusInternalServerError, txErr)
+		utils.HandleError(w, "Failed to validate exercise IDs", http.StatusInternalServerError, txErr)
 		return
 	}
 	defer rows.Close()
@@ -316,6 +310,9 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	var values []interface{}
 	var insertedExercises []models.UserExerciseInput
 
+	// use the same time for batch
+	currentTime := time.Now()
+
 	for i, exercise := range request.Exercises {
 		if exercise.Reps <= 0 || exercise.Load <= 0 {
 			invalidExercises = append(invalidExercises,
@@ -324,12 +321,8 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		//check exercise id exist
-		var exerciseExists bool
-		txErr = tx.QueryRow(`
-			SELECT EXISTS(SELECT 1 FROM Exercises WHERE id = $1)
-		`, exercise.ExerciseID).Scan(&exerciseExists)
-		if txErr != nil || !exerciseExists {
+		// batch validation
+		if !validExerciseIDs[exercise.ExerciseID] {
 			utils.HandleError(w, fmt.Sprintf("Invalid exercise_id: %d doesn't exist", exercise.ExerciseID), http.StatusBadRequest, nil)
 			return
 		}
@@ -340,16 +333,16 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 			zap.Int("reps", exercise.Reps),
 			zap.Int("load", exercise.Load),
 		)
-		// use placeholders and values for batch insert
-		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, CURRENT_DATE)", i*4+1, i*4+2, i*4+3, i*4+4))
-		values = append(values, userWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
+		// use placeholders batch insert with timestamp
+		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d)", i*5+1, i*5+2, i*5+3, i*5+4, i*5+5))
+		values = append(values, userWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load, currentTime)
 
 		//return value for response
 		insertedExercises = append(insertedExercises, models.UserExerciseInput{
 			ExerciseID:  exercise.ExerciseID,
 			Reps:        exercise.Reps,
 			Load:        exercise.Load,
-			SubmittedAt: time.Now(),
+			SubmittedAt: currentTime,
 		})
 	}
 
@@ -362,6 +355,8 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	utils.Logger.Info("Executing batch insert for user exercises", zap.Int("exercise_count", len(request.Exercises)))
+
 	// batch insert
 	if len(placeholders) > 0 {
 		query := fmt.Sprintf(`
@@ -369,7 +364,9 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		VALUES %s
 		ON CONFLICT ON CONSTRAINT unique_user_exercise_submission
 		DO UPDATE
-		SET custom_reps = EXCLUDED.custom_reps, custom_load = EXCLUDED.custom_load
+		SET custom_reps = EXCLUDED.custom_reps, 
+				custom_load = EXCLUDED.custom_load,
+				submitted_at = EXCLUDED.submitted_at
 		`, strings.Join(placeholders, ", "))
 
 		_, txErr = tx.Exec(query, values...)
