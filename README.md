@@ -39,7 +39,8 @@ This backend service provides APIs for:
 │   │   ├── user_controller.go
 │   │   └── exercise_controller.go
 │   ├── database/             # Database connection and queries
-│   │   └── db.go
+│   │   └── db.go             # Database connection
+│   │   └── statements.go     # SQL statements
 │   ├── middleware/           # Middleware functions
 │   │   ├── authmiddleware.go
 │   │   ├── cors.go
@@ -51,7 +52,7 @@ This backend service provides APIs for:
 │   │   ├── google_user.go
 │   │   └── exercise.go
 │   └── utils/                # Utility functions
-│       ├── helpers.go
+│       ├── helpers.go        # Helper functions(handle http errors, response, etc)
 │       └── logger.go         # Added zap logger
 ├── .env.example              # Example environment variables file
 ├── go.mod                    # Go module definition
