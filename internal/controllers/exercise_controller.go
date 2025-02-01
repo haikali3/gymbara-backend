@@ -321,12 +321,6 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// batch validation
-		if !validExerciseIDs[exercise.ExerciseID] {
-			utils.HandleError(w, fmt.Sprintf("Invalid exercise_id: %d doesn't exist", exercise.ExerciseID), http.StatusBadRequest, nil)
-			return
-		}
-
 		utils.Logger.Info("Adding exercise to batch",
 			zap.Int("user_workout_id", userWorkoutID),
 			zap.Int("exercise_id", exercise.ExerciseID),
@@ -347,6 +341,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(invalidExercises) > 0 {
+		utils.Logger.Warn("Invalid exercises detected", zap.Strings("invalid_exercises", invalidExercises))
 		utils.HandleError(w,
 			fmt.Sprintf("Invalid reps or load for exercises: %v",
 				strings.Join(invalidExercises, "; ")),
