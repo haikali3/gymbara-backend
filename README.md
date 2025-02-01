@@ -34,11 +34,12 @@ This backend service provides APIs for:
 ├── internal/                 # Internal application logic
 │   ├── auth/                 # Authentication logic
 │   │   ├── oauth.go
-│   │   └── jwt.go
 │   ├── controllers/          # HTTP handlers
 │   │   ├── user_controller.go
 │   │   └── exercise_controller.go
 │   ├── database/             # Database connection and queries
+│   │   ├── migrations/       # Database migrations 
+│   │   ├── script/           # Script for creating tables 
 │   │   └── db.go             # Database connection
 │   │   └── statements.go     # SQL statements
 │   ├── middleware/           # Middleware functions
@@ -53,11 +54,10 @@ This backend service provides APIs for:
 │   │   └── exercise.go
 │   └── utils/                # Utility functions
 │       ├── helpers.go        # Helper functions(handle http errors, response, etc)
-│       └── logger.go         # Added zap logger
+│       └── logger.go         # Zap logger integration
 ├── .env.example              # Example environment variables file
-├── go.mod                    # Go module definition
-├── go.sum                    # Go module dependencies
 ├── README.md                 # Project documentation
+├── Makefile                  # Makefile for automating tasks
 └── Dockerfile                # Docker configuration (if needed)
 ```
 
@@ -100,18 +100,7 @@ DB_NAME=gymbara
 SERVER_PORT=8080
 ```
 
-5. Set the environment for development or production on your server
-
-```bash
-# For development
-export APP_ENV=development
-
-# For production
-export APP_ENV=production
-
-```
-
-6. Run the server:
+5. Run the server:
 
 ```bash
 go run main.go
@@ -272,8 +261,11 @@ DB_NAME=gymbara
 SERVER_PORT=8080
 ```
 
-### 4. Database Migrations (Optional)
+### 4. Database Migrations and Development Tools
 
+The project uses a Makefile to automate common development tasks and database migrations using Goose.
+
+#### 4.1 Creating New Migrations
 Set up Goose for migrations:
 
 1. Create script
@@ -290,6 +282,51 @@ export DATABASE_URL="postgres://user:password@host:5432/dbname?sslmode=disable"
 goose up                    # Apply migrations
 goose down                  # Rollback last migration
 goose status               # Check migration status
+```
+
+
+#### 4.2 Using the Makefile
+
+Run the following commands to automate tasks:
+
+* **Run the app**:
+```bash
+make run
+```
+
+* **Build the app**:
+```bash
+make build
+```
+
+* **Apply migrations**:
+```bash
+make migrate-up
+```
+
+* **Rollback migrations**:
+```bash
+make migrate-down
+```
+
+* **Check migration status**:
+```bash
+make migrate-status
+```
+
+* **Run tests**:
+```bash
+make test
+```
+
+* **Format code**:
+```bash
+make fmt
+```
+
+* **Run full development cycle** (format, lint, test, run):
+```bash
+make dev
 ```
 
 #### 5. Testing
