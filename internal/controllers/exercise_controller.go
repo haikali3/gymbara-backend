@@ -212,6 +212,10 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 	// validate the request
 	if request.SectionID == 0 || len(request.Exercises) == 0 {
+		utils.Logger.Warn("Missing required fields in user exercise submission",
+			zap.Int("section_id", request.SectionID),
+			zap.Int("exercise_count", len(request.Exercises)),
+		)
 		utils.HandleError(w, "Missing required fields: section_id or exercises", http.StatusBadRequest, nil)
 		return
 	}
@@ -235,7 +239,6 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//TODO: Validate all inputs (e.g., section_id, exercise_id, reps, load) upfront, before starting the transaction.
 	// begin db transaction
 	tx, err := database.DB.Begin()
 	if err != nil {
@@ -244,46 +247,110 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// rollback or commit transaction appropriately
+	var txErr error
 	defer func() {
 		if p := recover(); p != nil {
 			tx.Rollback()
 			utils.Logger.Error("Transaction rolled back due to panic", zap.Any("panic", p))
 			panic(p)
-		} else if err != nil {
+		} else if txErr != nil {
 			tx.Rollback()
-			utils.Logger.Error("Transaction rolled back due to error", zap.Error(err))
+			utils.Logger.Error("Transaction rolled back due to error", zap.Error(txErr))
 		} else {
 			if commitErr := tx.Commit(); commitErr != nil {
 				utils.Logger.Error("Transaction commit failed", zap.Error(commitErr))
+				utils.HandleError(w, "Transaction commit failed", http.StatusInternalServerError, commitErr)
+				return
 			} else {
 				utils.Logger.Info("Transaction committed successfully")
 			}
 		}
 	}()
 
-	//create if UserWorkouts doenst exist
+	// insert or update UserWorkouts
 	var userWorkoutID int
-	err = tx.QueryRow(`
+	txErr = tx.QueryRow(`
 		INSERT INTO UserWorkouts (user_id, section_id)
 		VALUES ($1, $2)
 		ON CONFLICT (user_id, section_id) DO UPDATE
 		SET user_id = EXCLUDED.user_id
 		RETURNING id
 	`, userID, request.SectionID).Scan(&userWorkoutID)
-	if err != nil {
-		utils.HandleError(w, fmt.Sprintf("Failed to insert or update user workout for user_id: %d, section_id: %d", userID, request.SectionID), http.StatusInternalServerError, err)
+	if txErr != nil {
+		utils.HandleError(w, fmt.Sprintf("Failed to insert or update user workout for user_id: %d, section_id: %d", userID, request.SectionID), http.StatusInternalServerError, txErr)
 		return
 	}
 
-	// validate each exercise ID and  insert or update custom details
+	// batch check for exercise existence
+	exerciseIDs := make([]int, len(request.Exercises))
+	for i, exercise := range request.Exercises {
+		exerciseIDs[i] = exercise.ExerciseID
+	}
+
+	queryPlaceholders := make([string], len(exerciseIDs))
+	queryValues := make ([]interface{}, len(exerciseIDs))
+	for i, id := range exerciseIDs {
+		queryPlaceholders[i] = fmt.Sprintf("$%d", i+1)
+		queryValues[i] = id
+	}
+
+	query := fmt.Sprintf(`SELECT id FROM Exercises WHERE id IN (%s)`, strings.Join(queryPlaceholders, ","))
+	rows, txErr := tx.Query(query, queryValues...)
+	if txErr != nil {
+		utils.HandleError(w, "Falied to validate exercise IDs", http.StatusInternalServerError, txErr)
+		return
+	}
+	defer rows.Close()
+
+	validExerciseIDs := make(map[int]bool)
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err == nil {
+			validExerciseIDs[id] = true
+		}
+	}
+
+	// prepare for batch insert
 	var invalidExercises []string
+	var placeholders []string
+	var values []interface{}
 	var insertedExercises []models.UserExerciseInput
-	for _, exercise := range request.Exercises {
+
+	for i, exercise := range request.Exercises {
 		if exercise.Reps <= 0 || exercise.Load <= 0 {
 			invalidExercises = append(invalidExercises,
 				fmt.Sprintf("Exercise ID %d: Reps=%d, Load=%d",
 					exercise.ExerciseID, exercise.Reps, exercise.Load))
+			continue
 		}
+
+		//check exercise id exist
+		var exerciseExists bool
+		txErr = tx.QueryRow(`
+			SELECT EXISTS(SELECT 1 FROM Exercises WHERE id = $1)
+		`, exercise.ExerciseID).Scan(&exerciseExists)
+		if txErr != nil || !exerciseExists {
+			utils.HandleError(w, fmt.Sprintf("Invalid exercise_id: %d doesn't exist", exercise.ExerciseID), http.StatusBadRequest, nil)
+			return
+		}
+
+		utils.Logger.Info("Adding exercise to batch",
+			zap.Int("user_workout_id", userWorkoutID),
+			zap.Int("exercise_id", exercise.ExerciseID),
+			zap.Int("reps", exercise.Reps),
+			zap.Int("load", exercise.Load),
+		)
+		// use placeholders and values for batch insert
+		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, CURRENT_DATE)", i*4+1, i*4+2, i*4+3, i*4+4))
+		values = append(values, userWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
+
+		//return value for response
+		insertedExercises = append(insertedExercises, models.UserExerciseInput{
+			ExerciseID:  exercise.ExerciseID,
+			Reps:        exercise.Reps,
+			Load:        exercise.Load,
+			SubmittedAt: time.Now(),
+		})
 	}
 
 	if len(invalidExercises) > 0 {
@@ -295,39 +362,21 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, exercise := range request.Exercises {
-		//check exercise id exist
-		var exerciseExists bool
-		err = tx.QueryRow(`
-			SELECT EXISTS(SELECT 1 FROM Exercises WHERE id = $1)
-		`, exercise.ExerciseID).Scan(&exerciseExists)
-		if err != nil || !exerciseExists {
-			utils.HandleError(w, fmt.Sprintf("Invalid exercise_id: %d doesn't exist", exercise.ExerciseID), http.StatusBadRequest, nil)
-			return
-		}
-
-		//TODO: use batch SQL Query
-		// insert new exercise details
-		_, err = tx.Exec(`
+	// batch insert
+	if len(placeholders) > 0 {
+		query := fmt.Sprintf(`
 		INSERT INTO UserExercisesDetails (user_workout_id, exercise_id, custom_reps, custom_load, submitted_at)
-		VALUES ($1, $2, $3, $4, CURRENT_DATE)
+		VALUES %s
 		ON CONFLICT ON CONSTRAINT unique_user_exercise_submission
 		DO UPDATE
-		SET custom_reps = EXCLUDED.custom_reps,
-				custom_load = EXCLUDED.custom_load
-	`, userWorkoutID, exercise.ExerciseID, exercise.Reps, exercise.Load)
+		SET custom_reps = EXCLUDED.custom_reps, custom_load = EXCLUDED.custom_load
+		`, strings.Join(placeholders, ", "))
 
-		if err != nil {
-			utils.HandleError(w, "Failed to insert user exercise details", http.StatusInternalServerError, err)
+		_, txErr = tx.Exec(query, values...)
+		if txErr != nil {
+			utils.HandleError(w, "Failed to insert user exercise details", http.StatusInternalServerError, txErr)
 			return
 		}
-
-		insertedExercises = append(insertedExercises, models.UserExerciseInput{
-			ExerciseID:  exercise.ExerciseID,
-			Reps:        exercise.Reps,
-			Load:        exercise.Load,
-			SubmittedAt: time.Now(),
-		})
 	}
 
 	// return success response
@@ -336,4 +385,5 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		"user_workout_id":    userWorkoutID,
 		"inserted_exercises": insertedExercises,
 	})
+	utils.Logger.Info("User exercise details submitted successfully", zap.Int("user_workout_id", userWorkoutID))
 }
