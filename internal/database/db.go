@@ -30,6 +30,9 @@ func Connect(cfg *config.Config) {
 	DB.SetMaxIdleConns(5)
 	DB.SetConnMaxLifetime(5 * time.Minute)
 
+	//initialize prepared statement
+	PrepareStatements()
+
 	if err = DB.Ping(); err != nil {
 		utils.Logger.Fatal("Database connection is not alive:", zap.String("error", err.Error()))
 	}
@@ -83,6 +86,8 @@ func StoreUserWithToken(user models.GoogleUser, accessToken string, refreshToken
 }
 
 func Close() {
+	CloseStatement()
+
 	if DB != nil {
 		if err := DB.Close(); err != nil {
 			utils.Logger.Error("Failed to close database connection", zap.Error(err))
