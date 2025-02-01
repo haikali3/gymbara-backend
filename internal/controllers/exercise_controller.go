@@ -371,6 +371,8 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	utils.Logger.Debug("Batch insert query generated", zap.String("query", query))
+
 	// return success response
 	utils.WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{
 		"message":            "user exercise details submitted successfully",
