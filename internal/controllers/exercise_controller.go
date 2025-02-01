@@ -271,7 +271,13 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		RETURNING id
 	`, userID, request.SectionID).Scan(&userWorkoutID)
 	if txErr != nil {
-		utils.HandleError(w, fmt.Sprintf("Failed to insert or update user workout for user_id: %d, section_id: %d", userID, request.SectionID), http.StatusInternalServerError, txErr)
+		utils.HandleError(
+			w,
+			fmt.Sprintf("Failed to insert or update user workout for user_id: %d, section_id: %d. Error: %v",
+				userID,
+				request.SectionID,
+				txErr),
+			http.StatusInternalServerError, txErr)
 		return
 	}
 
@@ -373,7 +379,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 		_, txErr = tx.Exec(query, values...)
 		if txErr != nil {
-			utils.HandleError(w, "Failed to insert user exercise details", http.StatusInternalServerError, txErr)
+			utils.HandleError(w, fmt.Sprintf("Failed to insert user exercise details for exercise_id: %d", request.Exercises[len(insertedExercises)].ExerciseID), http.StatusInternalServerError, txErr)
 			return
 		}
 
