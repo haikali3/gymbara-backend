@@ -44,7 +44,13 @@ func (u *UserExerciseInput) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// ✅ Parse `YYYY-MM-DD` into `time.Time`
+	// // handle empty `submitted_at` field
+	// if aux.SubmittedAt == "" {
+	// 	u.SubmittedAt = time.Time{} // set to zero value of time.Time if empty
+	// 	return nil
+	// }
+
+	// Parse non-empty `submitted_at`
 	parsedTime, err := time.Parse("2006-01-02", aux.SubmittedAt)
 	if err != nil {
 		return err
