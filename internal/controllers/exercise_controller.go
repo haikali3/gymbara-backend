@@ -18,17 +18,7 @@ import (
 
 // Get workout sections
 func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
-	query := "SELECT id, name, route FROM WorkoutSections"
-
-	stmt, err := database.DB.Prepare(query)
-	if err != nil {
-		utils.HandleError(w, "Unable to prepare statement", http.StatusInternalServerError, err)
-		return
-	}
-	defer stmt.Close()
-
-	// use prepared statement
-	rows, err := stmt.Query()
+	rows, err := database.StmtGetWorkoutSections.Query()
 	if err != nil {
 		utils.HandleError(w, "Unable to query workout sections", http.StatusInternalServerError, err)
 		return
@@ -55,31 +45,15 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 // Get exercises for initial load
 func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 	workoutSectionID := r.URL.Query().Get("workout_section_id")
-
 	if workoutSectionID == "" {
 		utils.HandleError(w, "Missing workout_section_id parameter", http.StatusBadRequest, nil)
 		return
 	}
 
-	query := `
-        SELECT e.name, ed.reps, ed.working_sets, ed.load
-        FROM Exercises e
-        JOIN ExerciseDetails ed ON e.id = ed.exercise_id
-        WHERE e.workout_section_id = $1
-  `
-
-	//prepare statement to avoid sql injection
-	stmt, err := database.DB.Prepare(query)
+	// use the pre-prepared statement directly
+	rows, err := database.StmtGetExercisesBySectionID.Query(workoutSectionID)
 	if err != nil {
-		utils.HandleError(w, "Unable to prepare statement for querying exercises", http.StatusInternalServerError, err)
-		return
-	}
-	defer stmt.Close()
-
-	// use prepared statement
-	rows, err := stmt.Query(workoutSectionID)
-	if err != nil {
-		utils.HandleError(w, "Unable to query exercise basic details", http.StatusInternalServerError, err)
+		utils.HandleError(w, fmt.Sprintf("Unable to query exercises for workout_section_id: %s", workoutSectionID), http.StatusInternalServerError, err)
 		return
 	}
 	defer rows.Close()
@@ -102,20 +76,14 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 
 // Get detailed exercise information
 func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
+	//query param
 	workoutSectionID := r.URL.Query().Get("workout_section_id")
-
 	if workoutSectionID == "" {
 		utils.HandleError(w, "Missing workout_section_id parameter", http.StatusBadRequest, nil)
 		return
 	}
 
-	query := `
-    SELECT e.name, ed.warmup_sets, ed.working_sets, ed.reps, ed.load, ed.rpe, ed.rest_time
-		FROM Exercises e
-		JOIN ExerciseDetails ed ON e.id = ed.exercise_id
-		WHERE e.workout_section_id = $1
-    `
-	rows, err := database.DB.Query(query, workoutSectionID)
+	rows, err := database.StmtGetExerciseDetails.Query(workoutSectionID)
 	if err != nil {
 		utils.HandleError(w, "Unable to query exercise details", http.StatusInternalServerError, err)
 		utils.Logger.Error("Failed to query exercise details",

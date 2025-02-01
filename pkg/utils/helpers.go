@@ -1,4 +1,4 @@
-// internal/utils/http_helpers.go
+// internal/utils/helpers.go
 package utils
 
 import (
