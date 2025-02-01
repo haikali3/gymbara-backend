@@ -314,6 +314,13 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	currentTime := time.Now()
 
 	for i, exercise := range request.Exercises {
+		//check if exercise exist in db
+		if !validExerciseIDs[exercise.ExerciseID] {
+			utils.Logger.Warn("Attempt to insert invalid exercise ID", zap.Int("exercise_id", exercise.ExerciseID))
+			utils.HandleError(w, fmt.Sprintf("Invalid exercise_id: %d doesn't exist", exercise.ExerciseID), http.StatusBadRequest, nil)
+			return
+		}
+
 		if exercise.Reps <= 0 || exercise.Load <= 0 {
 			invalidExercises = append(invalidExercises,
 				fmt.Sprintf("Exercise ID %d: Reps=%d, Load=%d",
