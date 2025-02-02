@@ -1,0 +1,12 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - gofmt       # Ensures proper formatting
+    - goimports   # Organizes imports
+    - perfsprint  # Performance sprint linter
+    - bodyclose   # Checks for unclosed HTTP response bodies
+
+issues:
+  exclude-use-default: false
