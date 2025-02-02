@@ -1,0 +1,61 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]  # Trigger on push to main and develop branches
+  pull_request:
+    branches: [main, develop]  # Trigger on pull requests to main and develop
+
+jobs:
+  build:
+    name: Lint, Format, and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up Go environment
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.18  # Adjust to your Go version
+
+      # Cache dependencies to speed up builds
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      # Install dependencies
+      - name: Install dependencies
+        run: go mod tidy
+
+      # Install golangci-lint
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+
+      # Run golangci-lint
+      - name: Run Linter
+        run: golangci-lint run
+
+      # Check formatting with gofmt
+      - name: Check Code Formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "The following files are not formatted:"
+            gofmt -l .
+            exit 1
+          fi
+
+      # Run tests
+      - name: Run Tests
+        run: go test ./... -v
