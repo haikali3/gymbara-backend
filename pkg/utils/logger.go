@@ -15,7 +15,9 @@ func InitializeLogger() {
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "development"
-		os.Setenv("APP_ENV", env)
+		if err := os.Setenv("APP_ENV", env); err != nil {
+			panic("Failed to set environment variable: " + err.Error())
+		}
 	}
 
 	var encoder zapcore.Encoder
@@ -47,16 +49,13 @@ func InitializeLogger() {
 
 	core := zapcore.NewCore(encoder, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
 	Logger = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
-
-	if err != nil {
-		panic("Failed to initialize logger: " + err.Error())
-	}
-	defer Logger.Sync() // Flushes buffer, if any
 }
 
 func SyncLogger() {
 	if Logger != nil {
-		_ = Logger.Sync()
+		if err := Logger.Sync(); err != nil {
+			Logger.Error("Failed to sync logger", zap.Error(err))
+		}
 	}
 }
 

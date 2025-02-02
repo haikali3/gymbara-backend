@@ -44,7 +44,13 @@ func PrepareStatements() {
 }
 
 func CloseStatement() {
-	StmtGetWorkoutSections.Close()
-	StmtGetExercisesBySectionID.Close()
-	StmtGetExerciseDetails.Close()
+	if err := StmtGetWorkoutSections.Close(); err != nil {
+		utils.Logger.Error("Failed to close StmtGetWorkoutSections", zap.Error(err))
+	}
+	if err := StmtGetExercisesBySectionID.Close(); err != nil {
+		utils.Logger.Error("Failed to close StmtGetExercisesBySectionID", zap.Error(err))
+	}
+	if err := StmtGetExerciseDetails.Close(); err != nil {
+		utils.Logger.Error("Failed to close StmtGetExerciseDetails", zap.Error(err))
+	}
 }

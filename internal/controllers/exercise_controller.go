@@ -23,7 +23,11 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 		utils.HandleError(w, "Unable to query workout sections", http.StatusInternalServerError, err)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			utils.Logger.Error("Failed to close rows", zap.Error(err))
+		}
+	}()
 
 	var workoutSections []models.WorkoutSection
 	for rows.Next() {
@@ -53,10 +57,14 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 	// use the pre-prepared statement directly
 	rows, err := database.StmtGetExercisesBySectionID.Query(workoutSectionID)
 	if err != nil {
-		utils.HandleError(w, fmt.Sprintf("Unable to query exercises for workout_section_id: %s", workoutSectionID), http.StatusInternalServerError, err)
+		utils.HandleError(w, "Unable to query exercises for workout_section_id: "+workoutSectionID, http.StatusInternalServerError, err)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			utils.Logger.Error("Failed to close rows", zap.Error(err))
+		}
+	}()
 
 	var exerciseList []models.ExerciseDetails
 	for rows.Next() {
@@ -92,7 +100,11 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			utils.Logger.Error("Failed to close rows", zap.Error(err))
+		}
+	}()
 
 	var exerciseDetails []models.ExerciseDetails
 	for rows.Next() {
@@ -146,14 +158,22 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 		utils.HandleError(w, "Unable to prepare statement for querying workout sections and exercises", http.StatusInternalServerError, err)
 		return
 	}
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			utils.Logger.Error("Failed to close statement", zap.Error(err))
+		}
+	}()
 
 	rows, err := stmt.Query(args...)
 	if err != nil {
 		utils.HandleError(w, fmt.Sprintf("Unable to query workout sections and exercises for workout_section_ids: %v. Query: %s", workoutSectionIDs, query), http.StatusInternalServerError, err)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			utils.Logger.Error("Failed to close rows", zap.Error(err))
+		}
+	}()
 
 	//map is unordered lol
 	sectionsMap := make(map[int]*models.WorkoutSectionWithExercises)
@@ -244,12 +264,14 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	var txErr error
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback()
-			utils.Logger.Error("Transaction rolled back due to panic", zap.Any("panic", p))
+			if err := tx.Rollback(); err != nil {
+				utils.Logger.Error("Transaction rollback failed", zap.Error(err))
+			}
 			panic(p)
 		} else if txErr != nil {
-			tx.Rollback()
-			utils.Logger.Error("Transaction rolled back due to error", zap.Error(txErr))
+			if err := tx.Rollback(); err != nil {
+				utils.Logger.Error("Transaction rollback failed", zap.Error(err))
+			}
 		} else {
 			if commitErr := tx.Commit(); commitErr != nil {
 				utils.Logger.Error("Transaction commit failed", zap.Error(commitErr))
@@ -300,7 +322,11 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		utils.HandleError(w, "Failed to validate exercise IDs", http.StatusInternalServerError, txErr)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			utils.Logger.Error("Failed to close rows", zap.Error(err))
+		}
+	}()
 
 	validExerciseIDs := make(map[int]bool)
 	for rows.Next() {

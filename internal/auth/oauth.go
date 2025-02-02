@@ -39,7 +39,7 @@ func InitializeOAuthConfig() error {
 	GoogleOauthConfig = &oauth2.Config{
 		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		RedirectURL:  fmt.Sprintf("%s/oauth/callback", backendBaseURL),
+		RedirectURL:  backendBaseURL + "/oauth/callback",
 		Scopes:       []string{ScopeUserInfoProfile, ScopeUserInfoEmail},
 		Endpoint:     google.Endpoint,
 	}
@@ -186,7 +186,11 @@ func fetchUserInfo(ctx context.Context, token *oauth2.Token) (models.GoogleUser,
 	if err != nil {
 		return models.GoogleUser{}, fmt.Errorf("error fetching user info: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			utils.Logger.Error("Failed to close response body", zap.Error(err))
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return models.GoogleUser{}, fmt.Errorf("error validating token: status code %v", resp.StatusCode)

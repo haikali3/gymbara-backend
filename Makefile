@@ -7,7 +7,7 @@ APP_NAME := gymbara-backend
 all: run
 
 # Run the app in development
-run-dev:
+run:
 	echo 1 | go run cmd/main.go
 
 # Run the app in production

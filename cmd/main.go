@@ -22,13 +22,15 @@ func loadEnv() {
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "development"
-		os.Setenv("APP_ENV", env)
+		if err := os.Setenv("APP_ENV", env); err != nil {
+			utils.Logger.Fatal("Error setting environment variable", zap.Error(err))
+		}
 	}
 
 	wd, _ := os.Getwd()
 	utils.Logger.Info("Current Working Directory", zap.String("path", wd))
 
-	envFile := fmt.Sprintf(".env.%s", env)
+	envFile := ".env." + env
 	utils.Logger.Info("Loading environment file", zap.String("environment", env), zap.String("file", envFile))
 
 	err := godotenv.Load(envFile)
@@ -76,9 +78,12 @@ func main() {
 	// initialize logger
 	utils.InitializeLogger()
 	defer utils.SyncLogger() // ensure the logger flush on app exit
+	utils.Logger.Info("Logger initialized successfully with colors!")
 
 	env := selectEnvironment()
-	os.Setenv("APP_ENV", env)
+	if err := os.Setenv("APP_ENV", env); err != nil {
+		utils.Logger.Fatal("Error setting environment variable", zap.Error(err))
+	}
 
 	loadEnv()
 
