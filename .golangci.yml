@@ -1,12 +1,17 @@
-run:
-  timeout: 5m
-
 linters:
   enable:
     - gofmt       # Ensures proper formatting
     - goimports   # Organizes imports
     - perfsprint  # Performance sprint linter
     - bodyclose   # Checks for unclosed HTTP response bodies
+
+linters-settings:
+  perfsprint:
+    int-conversion: true  # Avoid unnecessary int/uint type casts
+    err-error: true        # Optimize err.Error() usage even if only for non-nil errors
+    errorf: false          # Disable fmt.Errorf optimization
+    sprintf1: true         # Disable optimization for fmt.Sprintf with only one argument
+    strconcat: true       # Disable strings concatenation optimization
 
 issues:
   exclude-use-default: false
