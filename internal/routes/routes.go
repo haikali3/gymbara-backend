@@ -27,8 +27,10 @@ func RegisterRoutes() {
 	http.Handle("/workout-sections/details", secureHandler(controllers.GetExerciseDetails))
 	http.Handle("/workout-sections/exercises", secureHandler(controllers.GetWorkoutSectionsWithExercises))
 
-	//User submit exercise details
+	// User submit exercise details
 	http.Handle("/workout-sections/user-exercise-details", secureHandler(controllers.SubmitUserExerciseDetails))
+	// Fetch user submitted exercise detail
+	http.Handle("/user/progress", secureHandler(controllers.GetUserProgress))
 
 	//fetch user details
 	http.Handle("/api/user-info", secureHandler(controllers.GetUserInfoHandler))

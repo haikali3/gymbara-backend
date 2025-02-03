@@ -50,7 +50,7 @@ func PrepareStatements() {
 	JOIN UserWorkouts uw ON ued.user_workout_id = uw.id
 	WHERE uw.user_id = $1
 	ORDER BY ued.submitted_at ASC
-`)
+	`)
 	if err != nil {
 		utils.Logger.Fatal("Failed to prepare StmtGetUserProgress", zap.Error(err))
 	}

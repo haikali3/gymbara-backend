@@ -420,3 +420,41 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	})
 	utils.Logger.Info("User exercise details submitted successfully", zap.Int("user_workout_id", userWorkoutID))
 }
+
+func GetUserProgress(w http.ResponseWriter, r *http.Request) {
+	userIDValue := r.Context().Value(middleware.UserIDKey)
+	if userIDValue == nil {
+		utils.HandleError(w, "Unauthorized: User ID missing", http.StatusUnauthorized, nil)
+		return
+	}
+
+	userID, ok := userIDValue.(int)
+	if !ok {
+		utils.HandleError(w, "Invalid User ID", http.StatusUnauthorized, nil)
+		return
+	}
+
+	rows, err := database.StmtGetUserProgress.Query(userID)
+	if err != nil {
+		utils.HandleError(w, "Unable to retrieve user progress", http.StatusInternalServerError, err)
+		return
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			utils.Logger.Error("Failed to close rows", zap.Error(err))
+		}
+	}()
+
+	var progressData []models.UserProgressResponse
+	for rows.Next() {
+		var progress models.UserProgressResponse
+		if err := rows.Scan(&progress.ExerciseID, &progress.ExerciseName, &progress.CustomLoad, &progress.CustomReps, &progress.SubmittedAt); err != nil {
+			utils.HandleError(w, "Error scanning user progress data", http.StatusInternalServerError, err)
+			return
+		}
+		progressData = append(progressData, progress)
+	}
+
+	utils.Logger.Info("User progress retrieved successfully", zap.Int("user_id", userID), zap.Int("records", len(progressData)))
+	utils.WriteJSONResponse(w, http.StatusOK, progressData)
+}
