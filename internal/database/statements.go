@@ -11,6 +11,7 @@ var (
 	StmtGetWorkoutSections      *sql.Stmt
 	StmtGetExercisesBySectionID *sql.Stmt
 	StmtGetExerciseDetails      *sql.Stmt
+	StmtGetUserProgress         *sql.Stmt
 )
 
 func PrepareStatements() {
@@ -41,6 +42,18 @@ func PrepareStatements() {
 	if err != nil {
 		utils.Logger.Fatal("Failed to prepare StmtGetExerciseDetails", zap.Error(err))
 	}
+
+	StmtGetUserProgress, err = DB.Prepare(`
+	SELECT ued.exercise_id, e.name, ued.custom_load, ued.custom_reps, ued.submitted_at
+	FROM UserExercisesDetails ued
+	JOIN Exercises e ON ued.exercise_id = e.id
+	JOIN UserWorkouts uw ON ued.user_workout_id = uw.id
+	WHERE uw.user_id = $1
+	ORDER BY ued.submitted_at ASC
+`)
+	if err != nil {
+		utils.Logger.Fatal("Failed to prepare StmtGetUserProgress", zap.Error(err))
+	}
 }
 
 func CloseStatement() {
@@ -52,5 +65,8 @@ func CloseStatement() {
 	}
 	if err := StmtGetExerciseDetails.Close(); err != nil {
 		utils.Logger.Error("Failed to close StmtGetExerciseDetails", zap.Error(err))
+	}
+	if err := StmtGetUserProgress.Close(); err != nil {
+		utils.Logger.Error("Failed to close StmtGetUserProgress", zap.Error(err))
 	}
 }
