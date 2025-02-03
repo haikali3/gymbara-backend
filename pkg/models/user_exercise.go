@@ -29,3 +29,12 @@ func (u UserExerciseInput) MarshalJSON() ([]byte, error) {
 		Alias:       (*Alias)(&u),
 	})
 }
+
+// Response model for progress data
+type UserProgressResponse struct {
+	ExerciseID   int    `json:"exercise_id"`
+	ExerciseName string `json:"exercise_name"` //refactor to use UserExerciseInput model
+	CustomLoad   int    `json:"custom_load"`
+	CustomReps   int    `json:"custom_reps"`
+	SubmittedAt  string `json:"submitted_at"`
+}
