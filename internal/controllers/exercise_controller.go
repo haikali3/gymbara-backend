@@ -447,12 +447,24 @@ func GetUserProgress(w http.ResponseWriter, r *http.Request) {
 
 	var progressData []models.UserProgressResponse
 	for rows.Next() {
-		var progress models.UserProgressResponse
-		if err := rows.Scan(&progress.ExerciseID, &progress.ExerciseName, &progress.CustomLoad, &progress.CustomReps, &progress.SubmittedAt); err != nil {
+		var exerciseID int
+		var exerciseName string
+		var customLoad, customReps int
+		var submittedAt time.Time
+
+		if err := rows.Scan(&exerciseID, &exerciseName, &customLoad, &customReps, &submittedAt); err != nil {
 			utils.HandleError(w, "Error scanning user progress data", http.StatusInternalServerError, err)
 			return
 		}
-		progressData = append(progressData, progress)
+
+		// later find better way just for format time
+		progressData = append(progressData, models.UserProgressResponse{
+			ExerciseID:   exerciseID,
+			ExerciseName: exerciseName,
+			CustomLoad:   customLoad,
+			CustomReps:   customReps,
+			SubmittedAt:  submittedAt.Format("2006-01-02"),
+		})
 	}
 
 	utils.Logger.Info("User progress retrieved successfully", zap.Int("user_id", userID), zap.Int("records", len(progressData)))
