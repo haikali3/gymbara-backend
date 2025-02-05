@@ -19,14 +19,19 @@ type workoutServer struct {
 }
 
 func (s *workoutServer) GetWorkoutHistory(ctx context.Context, req *pb.WorkoutHistoryRequest) (*pb.WorkoutHistoryResponse, error) {
-	// validate req
+	utils.Logger.Info("Received request for workout history", zap.Int32("user_id", req.UserId))
+
 	if req.UserId == 0 || req.StartDate == "" || req.EndDate == "" {
+		utils.Logger.Error("Invalid request parameters", zap.Any("request", req))
 		return nil, fmt.Errorf("missing required parameters")
 	}
 
+	// Log before executing the query
+	utils.Logger.Info("Preparing to execute query", zap.Int32("userId", req.UserId))
+
 	// query user workout history
 	query := `
-    SELECT ued.exercise_id, e.name, ued.custom_reps, eud.custom_load, ued.submitted_at
+    SELECT ued.exercise_id, e.name, ued.custom_reps, ued.custom_load, ued.submitted_at
     FROM UserExercisesDetails ued
     JOIN Exercises e ON ued.exercise_id = e.id
     JOIN UserWorkouts uw ON ued.user_workout_id = uw.id
@@ -34,8 +39,11 @@ func (s *workoutServer) GetWorkoutHistory(ctx context.Context, req *pb.WorkoutHi
     ORDER BY ued.submitted_at ASC
   `
 
+	utils.Logger.Info("Executing query", zap.String("query", query))
+
 	rows, err := database.DB.Query(query, req.UserId, req.StartDate, req.EndDate)
 	if err != nil {
+		utils.Logger.Error("Database query error", zap.Error(err))
 		return nil, fmt.Errorf("database query error: %v", err)
 	}
 	defer func() {
@@ -58,10 +66,15 @@ func (s *workoutServer) GetWorkoutHistory(ctx context.Context, req *pb.WorkoutHi
 		if submittedAt.Valid {
 			record.SubmittedAt = timestamppb.New(submittedAt.Time)
 		}
-
 		records = append(records, &record)
 	}
 
+	if err := rows.Err(); err != nil {
+		utils.Logger.Error("Row iteration error", zap.Error(err))
+		return nil, err
+	}
+
+	utils.Logger.Info("Successfully fetched workout history", zap.Int("record_count", len(records)))
 	return &pb.WorkoutHistoryResponse{Records: records}, nil
 }
 
