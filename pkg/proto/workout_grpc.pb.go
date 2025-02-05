@@ -4,7 +4,7 @@
 // - protoc             v5.29.3
 // source: proto/workout.proto
 
-package workout
+package proto
 
 import (
 	context "context"

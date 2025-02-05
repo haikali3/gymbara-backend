@@ -1,6 +1,6 @@
 syntax = "proto3";
 package workout;
-option go_package = "github.com/haikali3/gymbara-backend/pkg/proto;workout";
+option go_package = "github.com/haikali3/gymbara-backend/pkg/proto";
 import "google/protobuf/timestamp.proto";
 
 service WorkoutService {

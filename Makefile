@@ -40,7 +40,7 @@ dev: fmt lint test run
 # Protobuf
 # Directories
 PROTO_DIR=proto
-OUT_DIR=pkg/proto
+OUT_DIR=pkg
 
 # generate gRPC code in pkg/proto folder
 generate-proto:
