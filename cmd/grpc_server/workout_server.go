@@ -7,8 +7,8 @@ import (
 	"net"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
+	pb "github.com/haikali3/gymbara-backend/pkg/proto"
 	"github.com/haikali3/gymbara-backend/pkg/utils"
-	pb "github.com/haikali3/gymbara-backend/proto/workout"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -66,6 +66,10 @@ func (s *workoutServer) GetWorkoutHistory(ctx context.Context, req *pb.WorkoutHi
 }
 
 func main() {
+	// init logger
+	utils.InitializeLogger()
+	defer utils.SyncLogger() //logger flush on exit
+
 	//start grpc server
 	listener, err := net.Listen("tcp", ":50051")
 	if err != nil {

@@ -12,9 +12,11 @@ import (
 )
 
 func main() {
+	// init logger
+	utils.InitializeLogger()
+	defer utils.SyncLogger() //logger flush on exit
 
-	// conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		utils.Logger.Fatal("Failed to start server", zap.Error(err))
 	}
@@ -35,7 +37,12 @@ func main() {
 
 	res, err := client.GetWorkoutHistory(ctx, req)
 	if err != nil {
-		utils.Logger.Fatal("Error fetching workout history", zap.Error(err))
+		utils.Logger.Error("Error fetching workout history", zap.Error(err))
+	}
+
+	if res == nil {
+		utils.Logger.Warn("Received nil response from server")
+		return
 	}
 
 	utils.Logger.Info("Workout History:")

@@ -57,3 +57,15 @@ clean-proto:
 
 # Regenerate Protobuf Files
 regen-proto: clean-proto generate-proto
+
+run-server:
+	go run cmd/grpc_server/workout_server.go
+
+run-client:
+	go run cmd/grpc_client/workout_client.go
+
+run-both:
+	@echo "Starting gRPC Server and Client..."
+	@go run cmd/grpc_server/workout_server.go & \
+	sleep 2 && \
+	go run cmd/grpc_client/workout_client.go
