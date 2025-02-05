@@ -42,19 +42,22 @@ This backend service provides APIs for:
 │   │   ├── script/           # Script for creating tables 
 │   │   └── db.go             # Database connection
 │   │   └── statements.go     # SQL statements
-│   ├── middleware/           # Middleware functions
+│   ├── middleware/
 │   │   ├── authmiddleware.go
 │   │   ├── cors.go
 │   │   └── rate_limit.go
 │   └── routes/               # Route definitions
 │       └── routes.go
 ├── pkg/                      # Shared utilities and helpers 
+│   ├── proto/                # Protocol Buffers files
 │   ├── models/               # Data models
 │   │   ├── google_user.go
 │   │   └── exercise.go
-│   └── utils/                # Utility functions
+│   └── utils/                #
 │       ├── helpers.go        # Helper functions(handle http errors, response, etc)
 │       └── logger.go         # Zap logger integration
+├── proto/                    # Protocol Buffers files
+│   └── workout.proto         # gRPC service definition for workout history
 ├── .env.example              # Example environment variables file
 ├── README.md                 # Project documentation
 ├── Makefile                  # Makefile for automating tasks
@@ -197,18 +200,6 @@ INSERT INTO Exercises (name, workoutsection_id, notes, substitution_1, substitut
 ('Incline Machine Press', 1, '45° incline, focus on squeezing chest', 'Incline Smith Machine Press', 'Incline DB Press'),
 ('Single-Leg Leg Press (Heavy)', 1, 'High and wide foot positioning, start with weaker leg', 'Machine Squat', 'Hack Squat');
 ```
-
-## API Endpoints
-
-| Endpoint                                | Method | Description                                                                                              | Example Request                                                                                            | Example Response                                                                                                  |
-| --------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Get Workout Sections**                | GET    | Retrieves all workout sections (e.g., Full Body, Upper Body, etc.).                                      | `/workout-sections`                                                                                        | `[{"id": 1, "name": "Full Body"}, {"id": 2, "name": "Upper Body"}, ...]`                                          |
-| **Get Exercise List**                   | GET    | Retrieves a list of exercises based on the workout section ID.                                           | `/workout-sections/list?workout_section_id=1`                                                              | `[{"name": "Exercise Name", "reps": "8-10"}, ...]`                                                                |
-| **Get Exercise Details**                | GET    | Retrieves detailed information about exercises, including warmup sets, work sets, reps, etc.             | `/workout-sections/details?workout_section_id=1`                                                           | `[{"name": "Exercise Name", "warmup_sets": 2, "work_sets": 3, ...}, ...]`                                         |
-| **Login with Google**                   | GET    | Redirects users to Google’s OAuth login page for authentication.                                         | `/oauth/login`                                                                                             | Redirects to Google OAuth login page                                                                              |
-| **Google OAuth Callback**               | GET    | Handles the callback from Google after successful authentication. Retrieves and stores user information. | `/oauth/callback`                                                                                          | Redirects to frontend with auth token (set as cookie)                                                             |
-| **Get Workout Sections With Exercises** | GET    | Retrieves workout sections along with their associated exercises.                                        | `/workout-sections/with-exercises?workout_section_ids=1,2`                                                 | `[{"id": 1, "name": "Full Body", "route": "/full-body", "exercises": [...]}, {"id": 2, ...}]`                     |
-| **User Submit Exercises**               | POST   | Submits or updates user-specific exercise details, including reps and load.                              | `/workout-sections/user-exercise-details` Body: `{ "section_id": 1, "user_email": "test@gmail.com", ... }` | `{ "message": "user exercise details submitted successfully", "user_workout_id": 1, "updated_exercises": [...] }` |
 
 ## Deployment
 

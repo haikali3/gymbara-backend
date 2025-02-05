@@ -1,0 +1,26 @@
+syntax = "proto3";
+package workout;
+option go_package = "github.com/haikali3/gymbara-backend/pkg/proto";
+import "google/protobuf/timestamp.proto";
+
+service WorkoutService {
+  rpc GetWorkoutHistory (WorkoutHistoryRequest) returns (WorkoutHistoryResponse);
+}
+
+message WorkoutHistoryRequest {
+  int32 user_id = 1;
+  string start_date = 2;
+  string end_date = 3;
+}
+
+message WorkoutRecord {
+  int32 exercise_id = 1;
+  string exercise_name = 2;
+  int32 custom_reps = 3;
+  int32 custom_load = 4;
+  google.protobuf.Timestamp submitted_at = 5;
+}
+
+message WorkoutHistoryResponse {
+  repeated WorkoutRecord records = 1;
+}
