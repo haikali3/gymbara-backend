@@ -36,3 +36,24 @@ lint:
 
 # Run everything
 dev: fmt lint test run
+
+# Protobuf
+# Directories
+PROTO_DIR=proto
+OUT_DIR=pkg/proto
+
+# generate gRPC code in pkg/proto folder
+generate-proto:
+	protoc --go_out=$(OUT_DIR) \
+					--go_opt=paths=source_relative \
+					--go-grpc_out=$(OUT_DIR) \
+					--go-grpc_opt=paths=source_relative \
+					$(PROTO_DIR)/workout.proto
+
+# Clean Generated Files
+clean-proto:
+# rm -f $(OUT_DIR)/workout.pb.go $(OUT_DIR)/workout_grpc.pb.go
+	rm -f pkg/proto/workout.pb.go pkg/proto/workout_grpc.pb.go
+
+# Regenerate Protobuf Files
+regen-proto: clean-proto generate-proto
