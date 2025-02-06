@@ -97,6 +97,7 @@ func main() {
 	utils.InitializeLogger()
 	defer utils.SyncLogger() // flush logger on exit
 
+	//TODO: use the one from db.go?
 	initDB()
 
 	// Listen on port 50051
