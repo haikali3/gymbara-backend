@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
 	pb "github.com/haikali3/gymbara-backend/pkg/proto"
@@ -27,17 +26,6 @@ func (s *workoutServer) GetWorkoutHistory(ctx context.Context, req *pb.WorkoutHi
 		return nil, fmt.Errorf("missing required parameters")
 	}
 
-	startDate, err := time.Parse("2006-01-02", req.StartDate)
-	if err != nil {
-		utils.Logger.Error("Invalid start date format", zap.Error(err))
-		return nil, fmt.Errorf("invalid start date format")
-	}
-	endDate, err := time.Parse("2006-01-02", req.EndDate)
-	if err != nil {
-		utils.Logger.Error("Invalid end date format", zap.Error(err))
-		return nil, fmt.Errorf("invalid end date format")
-	}
-
 	// Log before executing the query
 	utils.Logger.Info("Preparing to execute query", zap.Int32("userId", req.UserId))
 
@@ -53,7 +41,7 @@ func (s *workoutServer) GetWorkoutHistory(ctx context.Context, req *pb.WorkoutHi
 
 	utils.Logger.Info("Executing query", zap.String("query", query))
 
-	rows, err := database.DB.Query(query, req.UserId, startDate, endDate)
+	rows, err := database.DB.Query(query, req.UserId, req.StartDate, req.EndDate)
 	if err != nil {
 		utils.Logger.Error("Database query error", zap.Error(err))
 		return nil, fmt.Errorf("database query error: %v", err)
