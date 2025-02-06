@@ -2,6 +2,7 @@ package utils
 
 import (
 	"os"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -51,12 +52,13 @@ func InitializeLogger() {
 	Logger = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 }
 
-func SyncLogger() {
-	if Logger != nil {
-		if err := Logger.Sync(); err != nil {
-			Logger.Error("Failed to sync logger", zap.Error(err))
-		}
+func SyncLogger() error {
+	err := Logger.Sync()
+	// Ignore "inappropriate ioctl for device" errors.
+	if err != nil && strings.Contains(err.Error(), "inappropriate ioctl for device") {
+		return nil
 	}
+	return err
 }
 
 // Custom level encoder with colors
