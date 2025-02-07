@@ -77,7 +77,11 @@ func selectEnvironment() string {
 func main() {
 	// initialize logger
 	utils.InitializeLogger()
-	defer utils.SyncLogger() // ensure the logger flush on app exit
+	defer func() {
+		if err := utils.SyncLogger(); err != nil {
+			utils.Logger.Error("Failed to sync logger", zap.Error(err))
+		}
+	}()
 	utils.Logger.Info("Logger initialized successfully with colors!")
 
 	env := selectEnvironment()

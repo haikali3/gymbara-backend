@@ -1,10 +1,11 @@
 syntax = "proto3";
 package workout;
-option go_package = "github.com/haikali3/gymbara-backend/pkg/proto";
 import "google/protobuf/timestamp.proto";
+option go_package = "github.com/haikali3/gymbara-backend/pkg/proto";
 
 service WorkoutService {
-  rpc GetWorkoutHistory (WorkoutHistoryRequest) returns (WorkoutHistoryResponse);
+  rpc GetWorkoutHistory (WorkoutHistoryRequest)
+      returns (WorkoutHistoryResponse);
 }
 
 message WorkoutHistoryRequest {
