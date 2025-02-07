@@ -65,7 +65,8 @@ func (s *workoutServer) GetWorkoutHistory(ctx context.Context, req *pb.WorkoutHi
 		}
 
 		if submittedAt.Valid {
-			record.SubmittedAt = timestamppb.New(submittedAt.Time)
+			record.SubmittedAt = timestamppb.New(submittedAt.Time) // why postman nano and seconds
+			record.SubmittedDateStr = submittedAt.Time.Format("2006-01-02")
 		}
 		records = append(records, &record)
 	}

@@ -56,6 +56,7 @@ func main() {
 			zap.Int("reps", int(record.CustomReps)),
 			zap.Int("load", int(record.CustomLoad)),
 			zap.String("date", record.SubmittedAt.AsTime().Format("2006-01-02")),
+			zap.String("date_str", record.SubmittedDateStr),
 		)
 	}
 }
