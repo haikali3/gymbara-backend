@@ -96,7 +96,11 @@ func initDB() {
 func main() {
 	// Initialize logger
 	utils.InitializeLogger()
-	defer utils.SyncLogger() // flush logger on exit
+	defer func() {
+		if err := utils.SyncLogger(); err != nil {
+			utils.Logger.Error("Failed to sync logger", zap.Error(err))
+		}
+	}() // flush logger on exit
 
 	//TODO: use the one from db.go?
 	initDB()

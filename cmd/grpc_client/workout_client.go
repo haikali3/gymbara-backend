@@ -14,14 +14,22 @@ import (
 func main() {
 	// Initialize logger
 	utils.InitializeLogger()
-	defer utils.SyncLogger() // flush logger on exit
+	defer func() {
+		if err := utils.SyncLogger(); err != nil {
+			utils.Logger.Error("Failed to sync logger", zap.Error(err))
+		}
+	}() // flush logger on exit
 
 	// Dial the server on port 50051
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		utils.Logger.Fatal("Failed to connect to server", zap.Error(err))
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			utils.Logger.Error("Failed to close connection", zap.Error(err))
+		}
+	}()
 
 	client := pb.NewWorkoutServiceClient(conn)
 
