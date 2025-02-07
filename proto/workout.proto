@@ -20,7 +20,6 @@ message WorkoutRecord {
   int32 custom_reps = 3;
   int32 custom_load = 4;
   google.protobuf.Timestamp submitted_at = 5;
-  string submitted_date_str = 6;
 }
 
 message WorkoutHistoryResponse {

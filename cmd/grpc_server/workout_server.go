@@ -65,8 +65,8 @@ func (s *workoutServer) GetWorkoutHistory(ctx context.Context, req *pb.WorkoutHi
 		}
 
 		if submittedAt.Valid {
-			record.SubmittedAt = timestamppb.New(submittedAt.Time) // why postman nano and seconds
-			record.SubmittedDateStr = submittedAt.Time.Format("2006-01-02")
+			record.SubmittedAt = timestamppb.New(submittedAt.Time)
+			// postman only show raw proto, so use cmd instead for output
 		}
 		records = append(records, &record)
 	}
@@ -81,7 +81,8 @@ func (s *workoutServer) GetWorkoutHistory(ctx context.Context, req *pb.WorkoutHi
 }
 
 func initDB() {
-	connStr := "user=postgres dbname=postgres sslmode=disable" // Update as needed
+	// TODO: later use db.go
+	connStr := "user=postgres dbname=postgres sslmode=disable"
 	var err error
 	database.DB, err = sql.Open("postgres", connStr)
 	if err != nil {
