@@ -361,3 +361,5 @@ func corsMiddleware(next http.Handler) http.Handler {
 ## ERD Diagram
 
 ![alt text](image.png)
+
+## Figure out how frontend will interact with the backend for grpc and then implement bidirectional streaming for user to workout together
