@@ -363,3 +363,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 ![alt text](image.png)
 
 ## Figure out how frontend will interact with the backend for grpc and then implement bidirectional streaming for user to workout together
+
+## Implementing gRPC only got workout history, consider migrate all the endpoints to gRPC?
+
+## add more features, study client streaming and server streaming
