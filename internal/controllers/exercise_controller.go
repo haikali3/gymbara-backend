@@ -64,19 +64,18 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 
 // Get exercises for initial load
 func GetExercisesList(w http.ResponseWriter, r *http.Request) {
-	sectionID := r.URL.Query().Get("workout_section_id")
-	cacheKey := "exercise_list_" + sectionID
-
-	// check if response is in the cache, if no, query db
-	if cachedData, found := workoutCache.Get(cacheKey); found {
-		utils.Logger.Info("Returning cached exercise list", zap.String("sectionID", sectionID))
-		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
-		return
-	}
-
 	workoutSectionID := r.URL.Query().Get("workout_section_id")
 	if workoutSectionID == "" {
 		utils.HandleError(w, "Missing workout_section_id parameter", http.StatusBadRequest, nil)
+		return
+	}
+
+	cacheKey := "exercise_list_" + workoutSectionID
+
+	// check if response is in the cache, if no, query db
+	if cachedData, found := workoutCache.Get(cacheKey); found {
+		utils.Logger.Info("Returning cached exercise list", zap.String("sectionID", workoutSectionID))
+		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
 		return
 	}
 
@@ -121,6 +120,15 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cacheKey := "exercise_details_" + workoutSectionID
+
+	// Check cache first
+	if cachedData, found := workoutCache.Get(cacheKey); found {
+		utils.Logger.Info("Returning cached exercise details", zap.String("workout_section_id", workoutSectionID))
+		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
+		return
+	}
+
 	rows, err := database.StmtGetExerciseDetails.Query(workoutSectionID)
 	if err != nil {
 		utils.HandleError(w, "Unable to query exercise details", http.StatusInternalServerError, err)
@@ -149,6 +157,9 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		zap.Int("count", len(exerciseDetails)),
 		zap.String("workout_section_id", workoutSectionID),
 	)
+
+	workoutCache.Set(cacheKey, exerciseDetails, 3*time.Hour)
+
 	utils.WriteJSONResponse(w, http.StatusOK, exerciseDetails)
 }
 
