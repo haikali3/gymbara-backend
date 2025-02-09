@@ -414,7 +414,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 	// return success response
 	utils.WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{
-		"message":            "user exercise details submitted successfully",
+		"message":            "user exercises details submitted successfully",
 		"user_workout_id":    userWorkoutID,
 		"inserted_exercises": insertedExercises,
 	})
