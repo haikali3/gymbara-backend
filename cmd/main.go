@@ -84,9 +84,11 @@ func main() {
 	}()
 	utils.Logger.Info("Logger initialized successfully with colors!")
 
-	env := selectEnvironment()
-	if err := os.Setenv("APP_ENV", env); err != nil {
-		utils.Logger.Fatal("Error setting environment variable", zap.Error(err))
+	// Get APP_ENV from .air.toml (or default to "development")
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "development"
+		os.Setenv("APP_ENV", env) // Set it so it's available for other parts of the program
 	}
 
 	loadEnv()
