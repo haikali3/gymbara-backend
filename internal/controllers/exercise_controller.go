@@ -64,6 +64,16 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 
 // Get exercises for initial load
 func GetExercisesList(w http.ResponseWriter, r *http.Request) {
+	sectionID := r.URL.Query().Get("workout_section_id")
+	cacheKey := "exercise_list_" + sectionID
+
+	// check if response is in the cache, if no, query db
+	if cachedData, found := workoutCache.Get(cacheKey); found {
+		utils.Logger.Info("Returning cached exercise list", zap.String("sectionID", sectionID))
+		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
+		return
+	}
+
 	workoutSectionID := r.URL.Query().Get("workout_section_id")
 	if workoutSectionID == "" {
 		utils.HandleError(w, "Missing workout_section_id parameter", http.StatusBadRequest, nil)
@@ -95,6 +105,10 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 		zap.Int("count", len(exerciseList)),
 		zap.String("workout_section_id", workoutSectionID),
 	)
+
+	// store cache for 3 hours
+	workoutCache.Set(cacheKey, exerciseList, 3*time.Hour)
+
 	utils.WriteJSONResponse(w, http.StatusOK, exerciseList)
 }
 
