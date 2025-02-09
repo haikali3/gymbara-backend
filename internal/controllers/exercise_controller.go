@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"strings"
@@ -465,6 +466,13 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 		utils.Logger.Debug("Batch insert query generated", zap.String("query", query))
 	}
+
+	// ✅ Invalidate cache when exercises are updated
+	workoutCache.Delete("workout_sections")
+	workoutCache.Delete("exercise_list_" + strconv.Itoa(request.SectionID))
+	workoutCache.Delete("exercise_details_" + strconv.Itoa(request.SectionID))
+
+	utils.Logger.Info("Cache invalidated for updated workout sections and exercises")
 
 	// return success response
 	utils.WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{
