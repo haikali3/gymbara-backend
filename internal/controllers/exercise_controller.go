@@ -5,19 +5,33 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"strings"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/middleware"
+	"github.com/haikali3/gymbara-backend/pkg/cache"
 	"github.com/haikali3/gymbara-backend/pkg/models"
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"go.uber.org/zap"
 )
 
+// init cache instance
+var workoutCache = cache.WorkoutCache
+
 // Get workout sections
 func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
+	cacheKey := "workout_sections"
+
+	// check if response is in the cache
+	if cachedData, found := workoutCache.Get(cacheKey); found {
+		utils.Logger.Info("Returning cached workout sections")
+		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
+		return
+	}
+
 	rows, err := database.StmtGetWorkoutSections.Query()
 	if err != nil {
 		utils.HandleError(w, "Unable to query workout sections", http.StatusInternalServerError, err)
@@ -43,6 +57,9 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// store cache for 3 hours
+	workoutCache.Set(cacheKey, workoutSections, 3*time.Hour)
+
 	utils.WriteJSONResponse(w, http.StatusOK, workoutSections)
 }
 
@@ -51,6 +68,15 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 	workoutSectionID := r.URL.Query().Get("workout_section_id")
 	if workoutSectionID == "" {
 		utils.HandleError(w, "Missing workout_section_id parameter", http.StatusBadRequest, nil)
+		return
+	}
+
+	cacheKey := "exercise_list_" + workoutSectionID
+
+	// check if response is in the cache, if no, query db
+	if cachedData, found := workoutCache.Get(cacheKey); found {
+		utils.Logger.Info("Returning cached exercise list", zap.String("sectionID", workoutSectionID))
+		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
 		return
 	}
 
@@ -79,6 +105,10 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 		zap.Int("count", len(exerciseList)),
 		zap.String("workout_section_id", workoutSectionID),
 	)
+
+	// store cache for 3 hours
+	workoutCache.Set(cacheKey, exerciseList, 3*time.Hour)
+
 	utils.WriteJSONResponse(w, http.StatusOK, exerciseList)
 }
 
@@ -88,6 +118,15 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	workoutSectionID := r.URL.Query().Get("workout_section_id")
 	if workoutSectionID == "" {
 		utils.HandleError(w, "Missing workout_section_id parameter", http.StatusBadRequest, nil)
+		return
+	}
+
+	cacheKey := "exercise_details_" + workoutSectionID
+
+	// Check cache first
+	if cachedData, found := workoutCache.Get(cacheKey); found {
+		utils.Logger.Info("Returning cached exercise details", zap.String("workout_section_id", workoutSectionID))
+		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
 		return
 	}
 
@@ -119,13 +158,25 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 		zap.Int("count", len(exerciseDetails)),
 		zap.String("workout_section_id", workoutSectionID),
 	)
+
+	workoutCache.Set(cacheKey, exerciseDetails, 3*time.Hour)
+
 	utils.WriteJSONResponse(w, http.StatusOK, exerciseDetails)
 }
 
 func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	workoutSectionIDs := r.URL.Query()["workout_section_ids"]
+	utils.Logger.Debug("Workout section IDs received", zap.Strings("workout_section_ids", workoutSectionIDs))
 	if len(workoutSectionIDs) == 0 {
 		utils.HandleError(w, "Missing workout_section_ids parameter", http.StatusBadRequest, nil)
+		return
+	}
+
+	cacheKey := "workout_sections_with_exercises_" + strings.Join(workoutSectionIDs, "_")
+
+	if cachedData, found := workoutCache.Get(cacheKey); found {
+		utils.Logger.Info("Returning cached workout sections with exercises", zap.String("cacheKey", cacheKey))
+		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
 		return
 	}
 
@@ -217,6 +268,10 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(sections, func(i, j int) bool {
 		return sections[i].ID < sections[j].ID
 	})
+
+	// ✅ Store in cache for 24 hours
+	utils.Logger.Info("Storing workout sections with exercises in cache", zap.String("cacheKey", cacheKey))
+	workoutCache.Set(cacheKey, sections, 3*time.Hour)
 
 	utils.WriteJSONResponse(w, http.StatusOK, sections)
 }
@@ -411,6 +466,18 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 		utils.Logger.Debug("Batch insert query generated", zap.String("query", query))
 	}
+
+	// ✅ Invalidate cache when exercises are updated
+	sectionIDStr := strconv.Itoa(request.SectionID)
+	if request.SectionID > 0 {
+		workoutCache.Delete("exercise_list_" + sectionIDStr)
+		workoutCache.Delete("exercise_details_" + sectionIDStr)
+	}
+
+	utils.Logger.Info("Cache invalidated for updated workout sections and exercises")
+	utils.Logger.Info("Cache invalidated", zap.String("cacheKey", "workout_sections"))
+	utils.Logger.Info("Cache invalidated", zap.String("cacheKey", "exercise_list_"+sectionIDStr))
+	utils.Logger.Info("Cache invalidated", zap.String("cacheKey", "exercise_details_"+sectionIDStr))
 
 	// return success response
 	utils.WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{
