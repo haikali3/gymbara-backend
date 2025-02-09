@@ -4,10 +4,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/haikali3/gymbara-backend/config"
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/routes"
+	"github.com/haikali3/gymbara-backend/pkg/cache"
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"go.uber.org/zap"
 
@@ -57,7 +59,11 @@ func main() {
 			utils.Logger.Error("Failed to sync logger", zap.Error(err))
 		}
 	}()
-	utils.Logger.Info("Logger initialized successfully with colors!")
+
+	// initialize cache
+	workoutCache := cache.NewCache()
+	// cache cleanup every 1 hour
+	workoutCache.Cleanup(1 * time.Hour)
 
 	// Get APP_ENV from .air.toml (or default to "development")
 	env := os.Getenv("APP_ENV")

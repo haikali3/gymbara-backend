@@ -165,8 +165,17 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	workoutSectionIDs := r.URL.Query()["workout_section_ids"]
+	utils.Logger.Debug("Workout section IDs received", zap.Strings("workout_section_ids", workoutSectionIDs))
 	if len(workoutSectionIDs) == 0 {
 		utils.HandleError(w, "Missing workout_section_ids parameter", http.StatusBadRequest, nil)
+		return
+	}
+
+	cacheKey := "workout_sections_with_exercises_" + strings.Join(workoutSectionIDs, "_")
+
+	if cachedData, found := workoutCache.Get(cacheKey); found {
+		utils.Logger.Info("Returning cached workout sections with exercises", zap.String("cacheKey", cacheKey))
+		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
 		return
 	}
 
@@ -258,6 +267,10 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(sections, func(i, j int) bool {
 		return sections[i].ID < sections[j].ID
 	})
+
+	// ✅ Store in cache for 24 hours
+	utils.Logger.Info("Storing workout sections with exercises in cache", zap.String("cacheKey", cacheKey))
+	workoutCache.Set(cacheKey, sections, 3*time.Hour)
 
 	utils.WriteJSONResponse(w, http.StatusOK, sections)
 }
