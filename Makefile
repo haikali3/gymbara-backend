@@ -2,17 +2,19 @@
 DB_URL := postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
 APP_NAME := gymbara-backend
 
-# Default target
-.PHONY: all
-all: run
-
 # Run the app in development
 run:
-	echo 1 | go run cmd/main.go
+	air
 
-# Run the app in production
+# Run the app in production( add variables)
 run-prod:
-	echo 2 | go run cmd/main.go
+	@echo "Starting Gymbara Backend in Production Mode..."
+	APP_ENV=production ./bin/$(APP_NAME)
+
+# Build & Run the app in Production Mode
+build-prod:
+	@echo "Building production binary..."
+	GOOS=linux GOARCH=amd64 go build -o bin/$(APP_NAME) ./cmd/main.go
 
 # Database migrations
 migrate-up:
