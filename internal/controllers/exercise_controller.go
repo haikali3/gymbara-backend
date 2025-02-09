@@ -11,13 +11,26 @@ import (
 
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/middleware"
+	"github.com/haikali3/gymbara-backend/pkg/cache"
 	"github.com/haikali3/gymbara-backend/pkg/models"
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"go.uber.org/zap"
 )
 
+// init cache instance
+var workoutCache = cache.NewCache()
+
 // Get workout sections
 func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
+	cacheKey := "workout_sections"
+
+	// check if response is in the cache
+	if cachedData, found := workoutCache.Get(cacheKey); found {
+		utils.Logger.Info("Returning cached workout sections")
+		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
+		return
+	}
+
 	rows, err := database.StmtGetWorkoutSections.Query()
 	if err != nil {
 		utils.HandleError(w, "Unable to query workout sections", http.StatusInternalServerError, err)
@@ -42,6 +55,9 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 		utils.HandleError(w, "No workout sections found", http.StatusNotFound, nil)
 		return
 	}
+
+	// store cache for 3 hours
+	workoutCache.Set(cacheKey, workoutSections, 3*time.Hour)
 
 	utils.WriteJSONResponse(w, http.StatusOK, workoutSections)
 }
