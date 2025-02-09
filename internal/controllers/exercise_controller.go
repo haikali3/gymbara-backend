@@ -19,7 +19,7 @@ import (
 )
 
 // init cache instance
-var workoutCache = cache.NewCache()
+var workoutCache = cache.WorkoutCache
 
 // Get workout sections
 func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
@@ -468,11 +468,16 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ✅ Invalidate cache when exercises are updated
-	workoutCache.Delete("workout_sections")
-	workoutCache.Delete("exercise_list_" + strconv.Itoa(request.SectionID))
-	workoutCache.Delete("exercise_details_" + strconv.Itoa(request.SectionID))
+	sectionIDStr := strconv.Itoa(request.SectionID)
+	if request.SectionID > 0 {
+		workoutCache.Delete("exercise_list_" + sectionIDStr)
+		workoutCache.Delete("exercise_details_" + sectionIDStr)
+	}
 
 	utils.Logger.Info("Cache invalidated for updated workout sections and exercises")
+	utils.Logger.Info("Cache invalidated", zap.String("cacheKey", "workout_sections"))
+	utils.Logger.Info("Cache invalidated", zap.String("cacheKey", "exercise_list_"+sectionIDStr))
+	utils.Logger.Info("Cache invalidated", zap.String("cacheKey", "exercise_details_"+sectionIDStr))
 
 	// return success response
 	utils.WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{

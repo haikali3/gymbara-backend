@@ -15,6 +15,8 @@ type InMemoryCache struct {
 	mu   sync.RWMutex
 }
 
+var WorkoutCache = NewCache()
+
 func NewCache() *InMemoryCache {
 	return &InMemoryCache{
 		data: make(map[string]CacheItem),
