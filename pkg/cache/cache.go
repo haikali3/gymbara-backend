@@ -42,3 +42,26 @@ func (c *InMemoryCache) Get(key string) (interface{}, bool) {
 	}
 	return item.Data, true
 }
+
+// delete item from cache
+func (c *InMemoryCache) Delete(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.data, key)
+}
+
+// cleanup expired cache item(by time)
+func (c *InMemoryCache) Cleanup(interval time.Duration) {
+	ticket := time.NewTicker(interval)
+	go func() {
+		for range ticket.C {
+			c.mu.Lock()
+			for key, item := range c.data {
+				if time.Now().After(item.ExpiresAt) {
+					delete(c.data, key)
+				}
+			}
+			c.mu.Unlock()
+		}
+	}()
+}
