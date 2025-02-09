@@ -53,17 +53,23 @@ func (c *InMemoryCache) Delete(key string) {
 }
 
 // cleanup expired cache item(by time)
-func (c *InMemoryCache) Cleanup(interval time.Duration) {
-	ticket := time.NewTicker(interval)
+func (c *InMemoryCache) Cleanup(interval time.Duration, stopChan chan struct{}) {
+	ticker := time.NewTicker(interval)
 	go func() {
-		for range ticket.C {
-			c.mu.Lock()
-			for key, item := range c.data {
-				if time.Now().After(item.ExpiresAt) {
-					delete(c.data, key)
+		for {
+			select {
+			case <-ticker.C:
+				c.mu.Lock()
+				for key, item := range c.data {
+					if time.Now().After(item.ExpiresAt) {
+						delete(c.data, key)
+					}
 				}
+				c.mu.Unlock()
+			case <-stopChan:
+				ticker.Stop()
+				return
 			}
-			c.mu.Unlock()
 		}
 	}()
 }
