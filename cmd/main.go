@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/haikali3/gymbara-backend/config"
 	"github.com/haikali3/gymbara-backend/internal/database"
@@ -52,28 +49,6 @@ func loadEnv() {
 	)
 }
 
-func selectEnvironment() string {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Select Environment:")
-	fmt.Println("1. Development")
-	fmt.Println("2. Production")
-
-	for {
-		fmt.Print("Enter number (1 or 2): ")
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-
-		switch input {
-		case "1":
-			return "development"
-		case "2":
-			return "production"
-		default:
-			fmt.Println("Invalid input. Please enter 1 or 2.")
-		}
-	}
-}
-
 func main() {
 	// initialize logger
 	utils.InitializeLogger()
@@ -88,7 +63,9 @@ func main() {
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "development"
-		os.Setenv("APP_ENV", env) // Set it so it's available for other parts of the program
+		if err := os.Setenv("APP_ENV", env); err != nil {
+			utils.Logger.Fatal("Error setting environment variable", zap.Error(err))
+		}
 	}
 
 	loadEnv()
