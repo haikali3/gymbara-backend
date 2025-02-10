@@ -63,7 +63,8 @@ func main() {
 	// initialize cache
 	workoutCache := cache.NewCache()
 	// cache cleanup every 1 hour
-	workoutCache.Cleanup(1 * time.Hour)
+	stopCleanup := make(chan struct{})
+	workoutCache.Cleanup(1*time.Hour, stopCleanup)
 
 	// Get APP_ENV from .air.toml (or default to "development")
 	env := os.Getenv("APP_ENV")
