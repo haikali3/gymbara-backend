@@ -37,17 +37,16 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
-      # Install golangci-lint
+      # Install golangci-lint using Docker
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
-          skip-cache: false   # Ensure caching is enabled
-          args: --timeout=5m 
+        run: docker pull golangci/golangci-lint
+      
+      - name: Run Linter (using Docker run)
+        run: docker run --rm -v $(pwd):/app -w /app golangci/golangci-lint:latest golangci-lint run -v
 
       # Run golangci-lint
-      - name: Run Linter
-        run: golangci-lint run
+      # - name: Run Linter
+      #   run: golangci-lint run
 
       # Check formatting with gofmt
       - name: Check Code Formatting
