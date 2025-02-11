@@ -34,7 +34,7 @@ func PrepareStatements() {
 	}
 
 	StmtGetExerciseDetails, err = DB.Prepare(`
-  SELECT e.name, ed.warmup_sets, ed.working_sets, ed.reps, ed.load, ed.rpe, ed.rest_time
+  SELECT e.id, e.name, ed.warmup_sets, ed.working_sets, ed.reps, ed.load, ed.rpe, ed.rest_time
   FROM Exercises e
   JOIN ExerciseDetails ed ON e.id = ed.exercise_id
   WHERE e.workout_section_id = $1
