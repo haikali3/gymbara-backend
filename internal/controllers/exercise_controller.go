@@ -148,7 +148,16 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	var exerciseDetails []models.ExerciseDetails
 	for rows.Next() {
 		var detail models.ExerciseDetails
-		if err := rows.Scan(&detail.Name, &detail.WarmupSets, &detail.WorkSets, &detail.Reps, &detail.Load, &detail.RPE, &detail.RestTime); err != nil {
+		if err := rows.Scan(
+			&detail.ID,
+			&detail.Name,
+			&detail.WarmupSets,
+			&detail.WorkSets,
+			&detail.Reps,
+			&detail.Load,
+			&detail.RPE,
+			&detail.RestTime,
+		); err != nil {
 			utils.HandleError(w, "Unable to scan exercise details", http.StatusInternalServerError, err)
 			return
 		}

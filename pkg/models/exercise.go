@@ -18,6 +18,7 @@ type WorkoutSection struct {
 }
 
 type ExerciseDetails struct {
+	ID         int    `json:"id"`
 	Name       string `json:"name"`
 	WarmupSets int    `json:"warmup_sets"`
 	WorkSets   int    `json:"working_sets"`
