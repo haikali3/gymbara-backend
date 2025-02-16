@@ -419,7 +419,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 		if exercise.Reps <= 0 || exercise.Load <= 0 {
 			invalidExercises = append(invalidExercises,
-				fmt.Sprintf("Exercise ID %d: Reps=%d, Load=%d",
+				fmt.Sprintf("Exercise ID %d: Reps=%d, Load=%.2f",
 					exercise.ExerciseID, exercise.Reps, exercise.Load))
 			continue
 		}
@@ -428,7 +428,7 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 			zap.Int("user_workout_id", userWorkoutID),
 			zap.Int("exercise_id", exercise.ExerciseID),
 			zap.Int("reps", exercise.Reps),
-			zap.Int("load", exercise.Load),
+			zap.Float64("load", exercise.Load),
 		)
 		// use placeholders batch insert with timestamp
 		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d)", i*5+1, i*5+2, i*5+3, i*5+4, i*5+5))
@@ -523,9 +523,9 @@ func GetUserProgress(w http.ResponseWriter, r *http.Request) {
 
 	var progressData []models.UserProgressResponse
 	for rows.Next() {
-		var exerciseID int
+		var exerciseID, customReps int
 		var exerciseName string
-		var customLoad, customReps int
+		var customLoad float64
 		var submittedAt time.Time
 
 		if err := rows.Scan(&exerciseID, &exerciseName, &customLoad, &customReps, &submittedAt); err != nil {

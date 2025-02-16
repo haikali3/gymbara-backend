@@ -32,6 +32,11 @@ migrate-up-to:
 migrate-down-to:
 	goose -dir internal/database/migrations postgres "$(DB_URL)" down-to $(VERSION)
 
+# Create a new migration file with a specific name
+create-migration:
+	@read -p "Enter migration name: " NAME; \
+	goose -dir internal/database/migrations create $$NAME sql
+
 # Lint code
 lint:
 	golangci-lint run
