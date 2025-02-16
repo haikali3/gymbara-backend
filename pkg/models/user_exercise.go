@@ -8,7 +8,7 @@ import (
 type UserExerciseInput struct {
 	ExerciseID  int       `json:"exercise_id"`
 	Reps        int       `json:"custom_reps"`
-	Load        int       `json:"custom_load"`
+	Load        float64   `json:"custom_load"`
 	SubmittedAt time.Time `json:"submitted_at"`
 }
 
