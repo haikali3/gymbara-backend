@@ -48,5 +48,9 @@ func HandleCustomerPortal(w http.ResponseWriter, r *http.Request) {
 
 	// Send URL to frontend
 	resp := map[string]string{"url": portalSession.URL}
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		utils.Logger.Error("Failed to encode response", zap.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
