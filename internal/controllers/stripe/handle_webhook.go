@@ -38,6 +38,18 @@ func handleWebhook(w http.ResponseWriter, req *http.Request) {
 
 	// Unmarshal the event data into an appropriate struct depending on its Type
 	switch event.Type {
+	case "customer.subscription.created":
+		var subscription stripe.Subscription
+		err := json.Unmarshal(event.Data.Raw, &subscription)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\n", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		utils.Logger.Info("Subscription created.", zap.String("subscription_id", subscription.ID))
+		// Then define and call a func to handle the successful attachment of a PaymentMethod.
+		// handleSubscriptionCreated(subscription)
+
 	case "customer.subscription.deleted":
 		var subscription stripe.Subscription
 		err := json.Unmarshal(event.Data.Raw, &subscription)
@@ -61,18 +73,6 @@ func handleWebhook(w http.ResponseWriter, req *http.Request) {
 		utils.Logger.Info("Subscription updated.", zap.String("subscription_id", subscription.ID))
 		// Then define and call a func to handle the successful attachment of a PaymentMethod.
 		// handleSubscriptionUpdated(subscription)
-
-	case "customer.subscription.created":
-		var subscription stripe.Subscription
-		err := json.Unmarshal(event.Data.Raw, &subscription)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\n", err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		utils.Logger.Info("Subscription created.", zap.String("subscription_id", subscription.ID))
-		// Then define and call a func to handle the successful attachment of a PaymentMethod.
-		// handleSubscriptionCreated(subscription)
 
 	case "customer.subscription.trial_will_end":
 		var subscription stripe.Subscription
