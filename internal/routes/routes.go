@@ -39,6 +39,6 @@ func RegisterRoutes() {
 	http.Handle("/oauth/login", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleLoginHandler)))
 	http.Handle("/oauth/callback", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleCallbackHandler)))
 
-	// payment
-	// http.Handle("/get-products", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(controllers.GetProducts)))
+	// stripe
+	// http.Handle("/create-checkout-session", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(controllers.CreateCheckoutSession)))
 }
