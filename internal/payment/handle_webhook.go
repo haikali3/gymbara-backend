@@ -2,7 +2,7 @@ package payment
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -18,7 +18,7 @@ import (
 func HandleWebhook(w http.ResponseWriter, req *http.Request) {
 	const MaxBodyBytes = int64(65536)
 	bodyReader := http.MaxBytesReader(w, req.Body, MaxBodyBytes)
-	payload, err := ioutil.ReadAll(bodyReader)
+	payload, err := io.ReadAll(bodyReader)
 	if err != nil {
 		http.Error(w, "Error reading request body", http.StatusServiceUnavailable)
 		return
