@@ -43,6 +43,7 @@ func HandleCustomerPortal(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve user’s Stripe customer ID from database
 	var customerID string
+	// ! where to get stripe customer id, from stripe? why need it? save payment method?
 	err := database.DB.QueryRow("SELECT stripe_customer_id FROM Users WHERE email = $1", req.Email).Scan(&customerID)
 	if err != nil {
 		http.Error(w, "User not found or missing Stripe ID", http.StatusNotFound)
