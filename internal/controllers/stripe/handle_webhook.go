@@ -101,5 +101,5 @@ func handleWebhook(w http.ResponseWriter, req *http.Request) {
 	default:
 		utils.Logger.Warn("Unhandled event type.", zap.String("event_type", string(event.Type)))
 	}
-
+	w.WriteHeader(http.StatusOK)
 }
