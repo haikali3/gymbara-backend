@@ -40,7 +40,7 @@ func RegisterRoutes() {
 	http.Handle("/oauth/login", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleLoginHandler)))
 	http.Handle("/oauth/callback", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleCallbackHandler)))
 
-	// stripe
-	http.Handle("/stripe/webhook", http.HandlerFunc(payment.HandleWebhook))
+	// Payment - stripe
+	http.Handle("/payment/customer-portal", http.HandlerFunc(payment.HandleCustomerPortal))
 
 }
