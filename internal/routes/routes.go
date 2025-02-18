@@ -7,6 +7,7 @@ import (
 	oauth "github.com/haikali3/gymbara-backend/internal/auth"
 	"github.com/haikali3/gymbara-backend/internal/controllers"
 	"github.com/haikali3/gymbara-backend/internal/middleware"
+	"github.com/haikali3/gymbara-backend/internal/payment"
 )
 
 func RegisterRoutes() {
@@ -39,6 +40,7 @@ func RegisterRoutes() {
 	http.Handle("/oauth/login", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleLoginHandler)))
 	http.Handle("/oauth/callback", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleCallbackHandler)))
 
-	// payment
-	// http.Handle("/get-products", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(controllers.GetProducts)))
+	// Payment - stripe
+	http.Handle("/payment/customer-portal", http.HandlerFunc(payment.HandleCustomerPortal))
+
 }
