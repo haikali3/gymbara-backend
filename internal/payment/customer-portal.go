@@ -12,9 +12,24 @@ import (
 	"go.uber.org/zap"
 )
 
+// 2️⃣ Stripe Customer Portal
+// 💡 Purpose: This is where users manage their existing subscriptions (change plans, cancel, update payment method).
+
+// 🔹 How It Works
+// A user already subscribed wants to change or cancel their plan.
+// They click a "Manage Subscription" button.
+// Backend creates a Customer Portal session.
+// The user is redirected to Stripe Billing where they can:
+// Upgrade/Downgrade plans
+// Cancel subscriptions
+// Update payment methods
+
 type CustomerPortalRequest struct {
 	Email string `json:"email"`
 }
+
+// Customer Portal:
+// This is where users manage their existing subscriptions (change plans, cancel, update payment method).
 
 // HandleCustomerPortal redirects users to Stripe's customer portal
 func HandleCustomerPortal(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +52,7 @@ func HandleCustomerPortal(w http.ResponseWriter, r *http.Request) {
 	// Create Customer Portal session
 	params := &stripe.BillingPortalSessionParams{
 		Customer:  stripe.String(customerID),
-		ReturnURL: stripe.String(os.Getenv("FRONTEND_URL") + "/dashboard"),
+		ReturnURL: stripe.String(os.Getenv("FRONTEND_URL") + "/payment/dashboard"),
 	}
 	portalSession, err := session.New(params)
 	if err != nil {

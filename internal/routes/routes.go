@@ -32,15 +32,14 @@ func RegisterRoutes() {
 	http.Handle("/workout-sections/user-exercise-details", secureHandler(controllers.SubmitUserExerciseDetails))
 	// Fetch user submitted exercise detail
 	http.Handle("/user/progress", secureHandler(controllers.GetUserProgress))
-
-	//fetch user details
+	// Fetch user details
 	http.Handle("/api/user-info", secureHandler(controllers.GetUserInfoHandler))
 
 	// OAuth routes
 	http.Handle("/oauth/login", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleLoginHandler)))
 	http.Handle("/oauth/callback", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleCallbackHandler)))
 
-	// Payment - stripe
+	// Payment
 	http.Handle("/payment/customer-portal", http.HandlerFunc(payment.HandleCustomerPortal))
-
+	http.Handle("/payment/checkout", http.HandlerFunc(payment.CreateSubscription))
 }
