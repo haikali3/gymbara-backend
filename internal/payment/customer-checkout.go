@@ -38,7 +38,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Stripe price ID (set this in your Stripe dashboard)
+	// Stripe price ID (set this in your Stripe dashboard) > Product Catalog(Sidebar) > Triple Dot > PriceID
 	priceID := os.Getenv("STRIPE_PRICE_ID")
 
 	// Set your secret key. Remember to switch to your live secret key in production.
@@ -72,3 +72,26 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
 }
+
+// func CheckoutSessionCompletedHandler(w http.ResponseWriter, r *http.Request) {
+// 	const MaxBodyBytes = int64(65536)
+// 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+// 	payload, err := io.ReadAll(r.Body)
+// 	if err != nil {
+// 		w.WriteHeader(http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	if event.Type == "checkout.session.completed" [
+// 		var session stripe.CheckoutSession
+// 		err := json.Unmarshal(event.Data.Raw, &session)
+// 		if err != nil {
+// 			w.WriteHeader(http.StatusBadRequest)
+// 			return
+// 		}
+
+// 		stripeCustomerID := session.Customer.ID
+
+// 		_, err = database.DB.Exec("UPDATE Users SET ")
+// 	]
+// }
