@@ -8,6 +8,7 @@ import (
 	"github.com/haikali3/gymbara-backend/internal/controllers"
 	"github.com/haikali3/gymbara-backend/internal/middleware"
 	"github.com/haikali3/gymbara-backend/internal/payment"
+	"github.com/haikali3/gymbara-backend/internal/webhook"
 )
 
 func RegisterRoutes() {
@@ -40,6 +41,9 @@ func RegisterRoutes() {
 	http.Handle("/oauth/callback", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleCallbackHandler)))
 
 	// Payment
-	http.Handle("/payment/customer-portal", http.HandlerFunc(payment.HandleCustomerPortal))
+	// http.Handle("/payment/customer-portal", http.HandlerFunc(payment.HandleCustomerPortal))
 	http.Handle("/payment/checkout", http.HandlerFunc(payment.CreateSubscription))
+
+	// Webhook
+	http.Handle("/webhook/stripe", http.HandlerFunc(webhook.CheckoutSessionCompleted))
 }
