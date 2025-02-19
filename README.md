@@ -13,6 +13,8 @@ A comprehensive Golang-based REST API for managing workout programs, built with 
 - [Deployment](#deployment)
 - [Environment Variables](#environment-variables)
 - [ERD Diagram](#erd-diagram)
+- [Stripe](#stripe)
+
 
 ## Project Overview
 
@@ -42,13 +44,16 @@ This backend service provides APIs for:
 │   │   ├── script/           # Script for creating tables 
 │   │   └── db.go             # Database connection
 │   │   └── statements.go     # SQL statements
+│   ├── payment/              # Stripe
 │   ├── middleware/
 │   │   ├── authmiddleware.go
 │   │   ├── cors.go
 │   │   └── rate_limit.go
 │   └── routes/               # Route definitions
-│       └── routes.go
+│   │   └── routes.go
+│   └── webhook/
 ├── pkg/                      # Shared utilities and helpers 
+│   ├── cache/                # Cache management
 │   ├── proto/                # Protocol Buffers files
 │   ├── models/               # Data models
 │   │   ├── google_user.go
@@ -372,3 +377,47 @@ Enable users to participate in group workouts with friends or other users. This 
 
 - **Client**: Sends and receives workout data to/from the server in real-time.
 - **Server**: Manages the group workout session and broadcasts data to all participants.
+
+## Stripe
+
+### Webhook Setup
+
+To handle Stripe webhooks locally, use the Stripe CLI to forward events to your local server.
+
+1. Start listening for events and forward them to your local server:
+
+```bash
+stripe listen --forward-to http://localhost:8080/webhook/stripe
+```
+
+2. New Terimanl: Trigger a `checkout.session.completed` event to test your webhook endpoint:
+
+```bash
+stripe trigger checkout.session.completed
+```
+
+You should see output similar to the following:
+
+```plaintext
+Setting up fixture for: product
+Running fixture for: product
+Setting up fixture for: price
+Running fixture for: price
+Setting up fixture for: checkout_session
+Running fixture for: checkout_session
+Setting up fixture for: payment_page
+Running fixture for: payment_page
+Setting up fixture for: payment_method
+Running fixture for: payment_method
+Setting up fixture for: payment_page_confirm
+Running fixture for: payment_page_confirm
+Trigger succeeded! Check dashboard for event details.
+```
+
+Check your Stripe dashboard to verify that the event was received and processed correctly.
+
+3. Cancel subscription ( check the subscription id from the stripe dashboard)
+
+```bash
+stripe cancel subscription sub_123456
+```
