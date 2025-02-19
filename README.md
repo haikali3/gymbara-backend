@@ -415,3 +415,9 @@ Trigger succeeded! Check dashboard for event details.
 ```
 
 Check your Stripe dashboard to verify that the event was received and processed correctly.
+
+3. Cancel subscription ( check the subscription id from the stripe dashboard)
+
+```bash
+stripe cancel subscription sub_123456
+```

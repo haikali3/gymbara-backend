@@ -48,5 +48,9 @@ func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 
 	// Return a success response with the canceled subscription details.
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(canceledSub)
+	if err := json.NewEncoder(w).Encode(canceledSub); err != nil {
+		utils.Logger.Error("Failed to encode response", zap.Error(err))
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
