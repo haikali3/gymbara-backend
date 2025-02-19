@@ -42,13 +42,16 @@ This backend service provides APIs for:
 │   │   ├── script/           # Script for creating tables 
 │   │   └── db.go             # Database connection
 │   │   └── statements.go     # SQL statements
+│   ├── payment/              # Stripe
 │   ├── middleware/
 │   │   ├── authmiddleware.go
 │   │   ├── cors.go
 │   │   └── rate_limit.go
 │   └── routes/               # Route definitions
-│       └── routes.go
+│   │   └── routes.go
+│   └── webhook/
 ├── pkg/                      # Shared utilities and helpers 
+│   ├── cache/                # Cache management
 │   ├── proto/                # Protocol Buffers files
 │   ├── models/               # Data models
 │   │   ├── google_user.go
