@@ -8,6 +8,7 @@ import (
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
+	"github.com/stripe/stripe-go/v81/customer"
 	"go.uber.org/zap"
 )
 
@@ -38,13 +39,22 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create the customer explicitly
+	custParams := &stripe.CustomerParams{
+		Email: stripe.String(req.Email),
+	}
+	cust, err := customer.New(custParams)
+	if err != nil {
+		utils.Logger.Error("Failed to create Stripe customer", zap.Error(err))
+		http.Error(w, "Could not create customer", http.StatusInternalServerError)
+		return
+	}
+
 	// Stripe price ID (set this in your Stripe dashboard) > Product Catalog(Sidebar) > Triple Dot > PriceID
 	priceID := os.Getenv("STRIPE_PRICE_ID")
-
-	// Set your secret key. Remember to switch to your live secret key in production.
-	// See your keys here: https://dashboard.stripe.com/apikeys
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 	params := &stripe.CheckoutSessionParams{
+		Customer:           stripe.String(cust.ID),
 		PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
 		CustomerEmail:      stripe.String(req.Email),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{

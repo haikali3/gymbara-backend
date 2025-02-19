@@ -43,6 +43,7 @@ func RegisterRoutes() {
 	// Payment
 	// http.Handle("/payment/customer-portal", http.HandlerFunc(payment.HandleCustomerPortal))
 	http.Handle("/payment/checkout", http.HandlerFunc(payment.CreateSubscription))
+	http.Handle("/payment/cancel-subscription", http.HandlerFunc(payment.CancelSubscription))
 
 	// Webhook
 	http.Handle("/webhook/stripe", http.HandlerFunc(webhook.CheckoutSessionCompleted))
