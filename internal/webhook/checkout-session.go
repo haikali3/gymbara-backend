@@ -48,6 +48,7 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 	if session.Customer == nil {
 		utils.Logger.Error("Customer data is nil")
 		http.Error(w, "Customer data is missing", http.StatusBadRequest)
+		return
 	}
 	stripeCustomerID := session.Customer.ID
 
