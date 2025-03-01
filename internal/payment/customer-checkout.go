@@ -56,18 +56,6 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ! stripe only able to show u customerID or customer email only. so lets try email after this
-	// Create the customer explicitly
-	// custParams := &stripe.CustomerParams{
-	// 	Email: stripe.String(req.Email),
-	// }
-	// cust, err := customer.New(custParams)
-	// if err != nil {
-	// 	utils.Logger.Error("Failed to create Stripe customer", zap.Error(err))
-	// 	http.Error(w, "Could not create customer", http.StatusInternalServerError)
-	// 	return
-	// }
-
 	params := &stripe.CheckoutSessionParams{
 		// Customer:           stripe.String(cust.ID),
 		PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
@@ -79,8 +67,8 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(os.Getenv("FRONTEND_URL") + "/payment/success"),
-		CancelURL:  stripe.String(os.Getenv("FRONTEND_URL") + "/payment/cancel"),
+		SuccessURL: stripe.String(frontendURL + "/payment/success"),
+		CancelURL:  stripe.String(frontendURL + "/payment/cancel"),
 	}
 
 	session, err := session.New(params)
