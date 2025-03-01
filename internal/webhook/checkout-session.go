@@ -45,19 +45,19 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	stripeCustomerID := session.Customer
 	if session.Customer == nil {
 		utils.Logger.Error("Customer data is nil")
 		http.Error(w, "Customer data is missing", http.StatusBadRequest)
 		return
 	}
-	stripeCustomerID := session.Customer.ID
 
+	stripeSubscriptionID := session.Subscription
 	if session.Subscription == nil {
 		utils.Logger.Error("Subscription data is nil")
-		http.Error(w, "Subscription data is missing", http.StatusBadRequest)
+		http.Error(w, "Subscription ID is missing", http.StatusBadRequest)
 		return
 	}
-	stripeSubscriptionID := session.Subscription.ID
 
 	email := session.CustomerDetails.Email
 	if email == "" {
