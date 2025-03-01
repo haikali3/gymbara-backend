@@ -56,7 +56,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ! stripe only able to show u customer or customer email only. so lets try email after this
+	// ! stripe only able to show u customerID or customer email only. so lets try email after this
 	// Create the customer explicitly
 	// custParams := &stripe.CustomerParams{
 	// 	Email: stripe.String(req.Email),
