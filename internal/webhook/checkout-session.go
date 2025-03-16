@@ -52,7 +52,7 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stripeSubscriptionID := session.Subscription
+	stripeSubscriptionID := session.Subscription.ID
 	if session.Subscription == nil {
 		utils.Logger.Error("Subscription data is nil")
 		http.Error(w, "Subscription ID is missing", http.StatusBadRequest)
@@ -70,26 +70,63 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var userID int
-	err = database.DB.QueryRow("SELECT id from Users WHERE email = $1", email).Scan(&userID)
+	err = database.DB.QueryRow("SELECT id, stripe_customer_id FROM Users WHERE email = $1", email).Scan(&userID, &stripeCustomerID)
+
 	if err != nil {
-		utils.Logger.Error("User not found", zap.String("email", email), zap.Error(err))
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
+		utils.Logger.Warn("User not found, creating new user", zap.String("email", email))
+
+		// Create new user with stripe_customer_id
+		err = database.DB.QueryRow(
+			"INSERT INTO Users (email, stripe_customer_id, is_premium) VALUES ($1, $2, TRUE) RETURNING id",
+			email, stripeCustomerID,
+		).Scan(&userID)
+
+		if err != nil {
+			utils.Logger.Error("Failed to create new user", zap.Error(err))
+			http.Error(w, "User creation failed", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Update existing user with stripe_customer_id if missing
+		if stripeCustomerID == nil {
+			_, err = database.DB.Exec("UPDATE Users SET stripe_customer_id = $1, is_premium = TRUE WHERE id = $2", stripeCustomerID, userID)
+			if err != nil {
+				utils.Logger.Error("Failed to update user with stripe customer ID", zap.Error(err))
+				http.Error(w, "Failed to update user", http.StatusInternalServerError)
+				return
+			}
+		}
 	}
+
+	// Ensure subscription exists
+	var existingSubscriptionID string
+	err = database.DB.QueryRow("SELECT stripe_subscription_id FROM Subscriptions WHERE user_id = $1", userID).Scan(&existingSubscriptionID)
 
 	paidDate := time.Now()
 	expirationDate := paidDate.AddDate(0, 1, 0)
 
-	query := `
-		INSERT INTO Subscriptions (user_id, paid_date, expiration_date, stripe_subscription_id, stripe_customer_id)
-		VALUES ($1, $2, $3, $4, $5)
-	`
-
-	_, err = database.DB.Exec(query, userID, paidDate, expirationDate, stripeSubscriptionID, stripeCustomerID)
-	if err != nil {
-		zap.L().Error("Failed to insert subscription record", zap.Error(err))
-		http.Error(w, "Failed to record subscription", http.StatusInternalServerError)
-		return
+	// If subscription exists, update it
+	if err == nil {
+		_, err = database.DB.Exec(
+			"UPDATE Subscriptions SET paid_date = $1, expiration_date = $2 WHERE user_id = $3",
+			paidDate, expirationDate, userID,
+		)
+		if err != nil {
+			utils.Logger.Error("Failed to update existing subscription", zap.Error(err))
+			http.Error(w, "Failed to update subscription", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// If no subscription exists, create a new one
+		_, err = database.DB.Exec(
+			"INSERT INTO Subscriptions (user_id, paid_date, expiration_date, stripe_subscription_id) VALUES ($1, $2, $3, $4)",
+			userID, paidDate, expirationDate, stripeSubscriptionID,
+		)
+		if err != nil {
+			utils.Logger.Error("Failed to insert subscription record", zap.Error(err))
+			http.Error(w, "Failed to record subscription", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)

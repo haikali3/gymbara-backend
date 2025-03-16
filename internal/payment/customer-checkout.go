@@ -11,22 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// 1️⃣ Monthly Subscription (Stripe Checkout)
-// 💡 Purpose: This is how users subscribe to a plan.
-
-// 🔹 How It Works
-// The user clicks a button to subscribe.
-// The backend creates a Stripe Checkout Session.
-// The user is redirected to Stripe Checkout.
-// Stripe processes the payment and starts the subscription.
-// 🔹 Backend Flow
-// 1️⃣ User sends a request to create a subscription.
-// 2️⃣ Backend creates a Checkout Session.
-// 3️⃣ Backend returns the Stripe Checkout URL to the frontend.
-// 4️⃣ Frontend redirects the user to complete payment.
-
-// ✅ Example API for Monthly Subscription
-
 type SubscriptionRequest struct {
 	Email string `json:"email"`
 }
@@ -56,8 +40,11 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1. Create Stripe Customer
+	// var CustomerID string
+	// err := database.DB.QueryRow("SELECT stripe_customer_id FROM Users")
+
 	params := &stripe.CheckoutSessionParams{
-		// Customer:           stripe.String(cust.ID),
 		PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
 		CustomerEmail:      stripe.String(req.Email),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
