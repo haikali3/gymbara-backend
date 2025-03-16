@@ -58,6 +58,7 @@ func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		// TODO: DEBUG HERE, can cancel subscription but is_premium is on Users table and not on subscriptions table
+		//https://chatgpt.com/c/67d6412a-3f5c-8009-9600-338685d65041
 		utils.Logger.Error("Failed to update subscription status in database", zap.Error(err))
 		http.Error(w, "Failed to update subscription in database", http.StatusInternalServerError)
 		return
