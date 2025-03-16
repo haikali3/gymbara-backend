@@ -8,7 +8,7 @@ import (
 	"github.com/haikali3/gymbara-backend/internal/controllers"
 	"github.com/haikali3/gymbara-backend/internal/middleware"
 	"github.com/haikali3/gymbara-backend/internal/payment"
-	"github.com/haikali3/gymbara-backend/internal/webhook"
+	"github.com/haikali3/gymbara-backend/internal/payment/webhook"
 )
 
 func RegisterRoutes() {
@@ -44,6 +44,8 @@ func RegisterRoutes() {
 	http.Handle("/payment/customer-portal", http.HandlerFunc(payment.CustomerPortal))
 	http.Handle("/payment/checkout", http.HandlerFunc(payment.CreateSubscription))
 	http.Handle("/payment/cancel-subscription", http.HandlerFunc(payment.CancelSubscription))
+	// http.Handle("/payment/get-subscription", http.HandlerFunc(payment.GetSubscription))
+	http.Handle("/payment/get-subscription", secureHandler(payment.GetSubscription))
 
 	// Webhook
 	http.Handle("/webhook/stripe", http.HandlerFunc(webhook.CheckoutSessionCompleted))
