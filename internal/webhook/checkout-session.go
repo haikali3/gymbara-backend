@@ -152,8 +152,11 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 
 	// ✅ Debugging Log: Check if `stripe_customer_id` was stored properly
 	var testStripeCustomerID string
-	err = database.DB.QueryRow("SELECT stripe_customer_id FROM Users WHERE id = $1", userID).Scan(&testStripeCustomerID)
-	utils.Logger.Info("Database check - stripe_customer_id after update", zap.String("stripe_customer_id", testStripeCustomerID))
+	if err := database.DB.QueryRow("SELECT stripe_customer_id FROM Users WHERE id = $1", userID).Scan(&testStripeCustomerID); err != nil {
+		utils.Logger.Error("Failed to verify stripe_customer_id in database", zap.Error(err))
+	} else {
+		utils.Logger.Info("Database check - stripe_customer_id after update", zap.String("stripe_customer_id", testStripeCustomerID))
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
