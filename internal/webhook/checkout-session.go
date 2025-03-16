@@ -45,10 +45,17 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stripeCustomerID := session.Customer
-	if session.Customer == nil {
-		utils.Logger.Error("Customer data is nil")
-		http.Error(w, "Customer data is missing", http.StatusBadRequest)
+	// Retrieve Stripe Customer ID
+	var stripeCustomerID string
+	if session.Customer.ID != "" {
+		stripeCustomerID = session.Customer.ID
+	} else if session.Metadata != nil {
+		stripeCustomerID = session.Metadata["customer_id"]
+	}
+
+	if stripeCustomerID == "" {
+		utils.Logger.Error("Stripe customer ID is missing", zap.Any("session", session))
+		http.Error(w, "Stripe customer ID is missing", http.StatusBadRequest)
 		return
 	}
 
@@ -70,12 +77,23 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var userID int
-	err = database.DB.QueryRow("SELECT id, stripe_customer_id FROM Users WHERE email = $1", email).Scan(&userID, &stripeCustomerID)
+	var existingStripeCustomerID string
 
-	if err != nil {
-		utils.Logger.Warn("User not found, creating new user", zap.String("email", email))
+	// Try to get the user ID and stripe_customer_id
+	err = database.DB.QueryRow("SELECT id, stripe_customer_id FROM Users WHERE email = $1", email).Scan(&userID, &existingStripeCustomerID)
 
-		// Create new user with stripe_customer_id
+	if err == nil {
+		// ✅ User exists, update stripe_customer_id if missing
+		if existingStripeCustomerID == "" {
+			_, err = database.DB.Exec("UPDATE Users SET stripe_customer_id = $1 WHERE id = $2", stripeCustomerID, userID)
+			if err != nil {
+				utils.Logger.Error("Failed to update stripe_customer_id", zap.Error(err))
+				http.Error(w, "Failed to update user", http.StatusInternalServerError)
+				return
+			}
+		}
+	} else if err.Error() == "sql: no rows in result set" {
+		// ✅ User not found, create a new one
 		err = database.DB.QueryRow(
 			"INSERT INTO Users (email, stripe_customer_id, is_premium) VALUES ($1, $2, TRUE) RETURNING id",
 			email, stripeCustomerID,
@@ -85,16 +103,6 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 			utils.Logger.Error("Failed to create new user", zap.Error(err))
 			http.Error(w, "User creation failed", http.StatusInternalServerError)
 			return
-		}
-	} else {
-		// Update existing user with stripe_customer_id if missing
-		if stripeCustomerID == nil {
-			_, err = database.DB.Exec("UPDATE Users SET stripe_customer_id = $1, is_premium = TRUE WHERE id = $2", stripeCustomerID, userID)
-			if err != nil {
-				utils.Logger.Error("Failed to update user with stripe customer ID", zap.Error(err))
-				http.Error(w, "Failed to update user", http.StatusInternalServerError)
-				return
-			}
 		}
 	}
 

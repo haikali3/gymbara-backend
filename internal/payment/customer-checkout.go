@@ -8,6 +8,7 @@ import (
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
+	"github.com/stripe/stripe-go/v81/customer"
 	"go.uber.org/zap"
 )
 
@@ -40,13 +41,21 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Create Stripe Customer
-	// var CustomerID string
-	// err := database.DB.QueryRow("SELECT stripe_customer_id FROM Users")
+	// Create a Stripe customer first
+	customerParams := &stripe.CustomerParams{
+		Email: stripe.String(req.Email),
+	}
+	customer, err := customer.New(customerParams)
+	if err != nil {
+		utils.Logger.Error("Failed to create Stripe customer", zap.Error(err))
+		http.Error(w, "Failed to create Stripe customer", http.StatusInternalServerError)
+		return
+	}
 
 	params := &stripe.CheckoutSessionParams{
 		PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
-		CustomerEmail:      stripe.String(req.Email),
+		// CustomerEmail:      stripe.String(req.Email),
+		Customer: stripe.String(customer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Price:    stripe.String(priceID),
