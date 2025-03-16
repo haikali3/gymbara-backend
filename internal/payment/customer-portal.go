@@ -32,7 +32,7 @@ type CustomerPortalRequest struct {
 // This is where users manage their existing subscriptions (change plans, cancel, update payment method).
 
 // HandleCustomerPortal redirects users to Stripe's customer portal
-func HandleCustomerPortal(w http.ResponseWriter, r *http.Request) {
+func CustomerPortal(w http.ResponseWriter, r *http.Request) {
 	var req CustomerPortalRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
@@ -44,6 +44,7 @@ func HandleCustomerPortal(w http.ResponseWriter, r *http.Request) {
 	// Retrieve user’s Stripe customer ID from database
 	var customerID string
 	// ! where to get stripe customer id, from stripe? why need it? save payment method?
+	// stripe_customer_id get after user created subscription
 	err := database.DB.QueryRow("SELECT stripe_customer_id FROM Users WHERE email = $1", req.Email).Scan(&customerID)
 	if err != nil {
 		http.Error(w, "User not found or missing Stripe ID", http.StatusNotFound)

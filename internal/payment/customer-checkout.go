@@ -8,24 +8,9 @@ import (
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
+	"github.com/stripe/stripe-go/v81/customer"
 	"go.uber.org/zap"
 )
-
-// 1️⃣ Monthly Subscription (Stripe Checkout)
-// 💡 Purpose: This is how users subscribe to a plan.
-
-// 🔹 How It Works
-// The user clicks a button to subscribe.
-// The backend creates a Stripe Checkout Session.
-// The user is redirected to Stripe Checkout.
-// Stripe processes the payment and starts the subscription.
-// 🔹 Backend Flow
-// 1️⃣ User sends a request to create a subscription.
-// 2️⃣ Backend creates a Checkout Session.
-// 3️⃣ Backend returns the Stripe Checkout URL to the frontend.
-// 4️⃣ Frontend redirects the user to complete payment.
-
-// ✅ Example API for Monthly Subscription
 
 type SubscriptionRequest struct {
 	Email string `json:"email"`
@@ -56,22 +41,21 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ! stripe only able to show u customer or customer email only. so lets try email after this
-	// Create the customer explicitly
-	// custParams := &stripe.CustomerParams{
-	// 	Email: stripe.String(req.Email),
-	// }
-	// cust, err := customer.New(custParams)
-	// if err != nil {
-	// 	utils.Logger.Error("Failed to create Stripe customer", zap.Error(err))
-	// 	http.Error(w, "Could not create customer", http.StatusInternalServerError)
-	// 	return
-	// }
+	// Create a Stripe customer first
+	customerParams := &stripe.CustomerParams{
+		Email: stripe.String(req.Email),
+	}
+	customer, err := customer.New(customerParams)
+	if err != nil {
+		utils.Logger.Error("Failed to create Stripe customer", zap.Error(err))
+		http.Error(w, "Failed to create Stripe customer", http.StatusInternalServerError)
+		return
+	}
 
 	params := &stripe.CheckoutSessionParams{
-		// Customer:           stripe.String(cust.ID),
 		PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
-		CustomerEmail:      stripe.String(req.Email),
+		// CustomerEmail:      stripe.String(req.Email),
+		Customer: stripe.String(customer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Price:    stripe.String(priceID),
@@ -79,8 +63,8 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(os.Getenv("FRONTEND_URL") + "/payment/success"),
-		CancelURL:  stripe.String(os.Getenv("FRONTEND_URL") + "/payment/cancel"),
+		SuccessURL: stripe.String(frontendURL + "/payment/success"),
+		CancelURL:  stripe.String(frontendURL + "/payment/cancel"),
 	}
 
 	session, err := session.New(params)
