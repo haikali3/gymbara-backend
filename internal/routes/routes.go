@@ -45,6 +45,8 @@ func RegisterRoutes() {
 	http.Handle("/payment/checkout", http.HandlerFunc(payment.CreateSubscription))
 	http.Handle("/payment/cancel-subscription", http.HandlerFunc(payment.CancelSubscription))
 	http.Handle("/payment/get-subscription", secureHandler(http.HandlerFunc(payment.GetSubscription)))
+	http.Handle("/payment/verify-session", http.HandlerFunc(payment.VerifyCheckoutSession))
+	http.Handle("/payment/verify-session", secureHandler(http.HandlerFunc(payment.VerifyCheckoutSession)))
 
 	// Webhook
 	http.Handle("/webhook/stripe", http.HandlerFunc(webhook.CheckoutSessionCompleted))
