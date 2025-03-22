@@ -127,15 +127,15 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 	// ✅ If subscription exists, update it
 	if err == nil {
 		_, err = database.DB.Exec(
-			"UPDATE Subscriptions SET paid_date = $1, expiration_date = $2 WHERE user_id = $3",
-			paidDate, expirationDate, userID,
+			"UPDATE Subscriptions SET paid_date = $1, expiration_date = $2, stripe_subscription_id = $3 WHERE user_id = $4",
+			paidDate, expirationDate, stripeSubscriptionID, userID,
 		)
 		if err != nil {
 			utils.Logger.Error("Failed to update existing subscription", zap.Error(err))
 			http.Error(w, "Failed to update subscription", http.StatusInternalServerError)
 			return
 		}
-		utils.Logger.Info("Updated existing subscription", zap.Int("userID", userID))
+		utils.Logger.Info("Updated existing subscription", zap.Int("userID", userID), zap.String("stripeSubscriptionID", stripeSubscriptionID))
 	} else {
 		// ✅ If no subscription exists, create a new one
 		_, err = database.DB.Exec(

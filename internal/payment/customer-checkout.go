@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"github.com/stripe/stripe-go/v81"
@@ -40,6 +41,8 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
+
+	req.Email = strings.ToLower(req.Email) // normalize email
 
 	// Create a Stripe customer first
 	customerParams := &stripe.CustomerParams{

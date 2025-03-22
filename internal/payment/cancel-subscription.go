@@ -51,16 +51,30 @@ func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var userID string
+	err = database.DB.QueryRow(
+		"SELECT user_id FROM Subscriptions WHERE stripe_subscription_id = $1",
+		req.SubscriptionID,
+	).Scan(&userID)
+	if err != nil {
+		utils.Logger.Error("Failed to get user ID from subscription", zap.Error(err))
+		http.Error(w, "Could not find user for this subscription", http.StatusInternalServerError)
+		return
+	}
+
 	// ✅ Update database to reflect cancellation
 	_, err = database.DB.Exec(
-		"UPDATE Subscriptions SET is_active = FALSE WHERE stripe_subscription_id = $1",
-		req.SubscriptionID,
+		"UPDATE Users SET is_premium = FALSE WHERE id = $1",
+		userID,
 	)
 	if err != nil {
-		// TODO: DEBUG HERE, can cancel subscription but is_premium is on Users table and not on subscriptions table
-		//https://chatgpt.com/c/67d6412a-3f5c-8009-9600-338685d65041
-		utils.Logger.Error("Failed to update subscription status in database", zap.Error(err))
-		http.Error(w, "Failed to update subscription in database", http.StatusInternalServerError)
+		if err.Error() == "sql: no rows in result set" {
+			utils.Logger.Warn("Subscription ID not found in database", zap.String("subscription_id", req.SubscriptionID))
+			http.Error(w, "Subscription not found in database", http.StatusNotFound)
+			return
+		}
+		utils.Logger.Error("Failed to get user ID from subscription", zap.Error(err))
+		http.Error(w, "Could not find user for this subscription", http.StatusInternalServerError)
 		return
 	}
 
