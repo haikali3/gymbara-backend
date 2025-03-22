@@ -1,0 +1,45 @@
+package payment
+
+import (
+	"encoding/json"
+	"net/http"
+	"os"
+
+	"github.com/haikali3/gymbara-backend/pkg/utils"
+	"github.com/stripe/stripe-go/v81"
+	"github.com/stripe/stripe-go/v81/checkout/session"
+	"go.uber.org/zap"
+)
+
+func VerifyCheckoutSession(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		http.Error(w, "Missing session_id", http.StatusBadRequest)
+		return
+	}
+
+	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+
+	s, err := session.Get(sessionID, nil)
+	if err != nil {
+		utils.Logger.Error("Failed to retrieve session", zap.Error(err))
+		http.Error(w, "Invalid session_id", http.StatusBadRequest)
+		return
+	}
+
+	resp := map[string]string{
+		"payment_status": string(s.PaymentStatus), // usually "paid"
+		"customer_email": s.CustomerDetails.Email,
+		"subscription_id": func() string {
+			if s.Subscription != nil {
+				return s.Subscription.ID
+			}
+			return ""
+		}(),
+	}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		utils.Logger.Error("Failed to encode response", zap.Error(err))
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+}

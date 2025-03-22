@@ -66,8 +66,9 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 				Quantity: stripe.Int64(1),
 			},
 		},
-		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(frontendURL + "/payment/success"),
+		Mode: stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		// SuccessURL: stripe.String(frontendURL + "/payment/success"),
+		SuccessURL: stripe.String(frontendURL + "/payment/success?session_id={CHECKOUT_SESSION_ID}"),
 		CancelURL:  stripe.String(frontendURL + "/payment/cancel"),
 	}
 
