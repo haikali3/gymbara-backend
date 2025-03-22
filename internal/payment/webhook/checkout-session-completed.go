@@ -97,6 +97,15 @@ func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
 			}
 			utils.Logger.Info("Updated stripe_customer_id for existing user", zap.Int("userID", userID))
 		}
+		// ✅ Always set is_premium = TRUE for existing user
+		_, err = database.DB.Exec("UPDATE Users SET is_premium = TRUE WHERE id = $1", userID)
+		if err != nil {
+			utils.Logger.Error("Failed to update is_premium for existing user", zap.Error(err))
+			http.Error(w, "Failed to update user", http.StatusInternalServerError)
+			return
+		}
+		utils.Logger.Info("Marked existing user as premium", zap.Int("userID", userID))
+
 	} else if err.Error() == "sql: no rows in result set" {
 		// ✅ User not found, create a new one
 		err = database.DB.QueryRow(
