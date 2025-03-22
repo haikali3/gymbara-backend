@@ -25,8 +25,8 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	frontendURL := os.Getenv("FRONTEND_URL")
 
 	if stripeKey == "" || priceID == "" || frontendURL == "" {
-		utils.Logger.Error("Missing required environment variables", zap.String("StripeKey", stripeKey), zap.String("PriceID", priceID))
-		http.Error(w, "Stripe API Key, Price ID, or Frontend URL is missing", http.StatusInternalServerError)
+		utils.Logger.Error("Missing required environment variables")
+		http.Error(w, "Missing Stripe config", http.StatusInternalServerError)
 		return
 	}
 
@@ -37,55 +37,64 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-
 	req.Email = strings.ToLower(req.Email)
 	utils.Logger.Info("Email received for subscription", zap.String("email", req.Email))
 
-	// Step 1: Check user in DB
+	// Step 1: Look up user in DB
 	var userID int
 	var stripeCustomerID *string
 	err := database.DB.QueryRow("SELECT id, stripe_customer_id FROM Users WHERE email = $1", req.Email).Scan(&userID, &stripeCustomerID)
 	if err != nil && err.Error() != "sql: no rows in result set" {
-		utils.Logger.Error("Failed to fetch user from DB", zap.Error(err))
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		utils.Logger.Error("DB error fetching user", zap.Error(err))
+		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
-	// Step 2: Use existing Stripe customer ID or create new one
+	// Step 2: Use valid Stripe customer ID or create new one
 	var customerID string
+	validCustomer := false
+
 	if stripeCustomerID != nil && *stripeCustomerID != "" {
-		customerID = *stripeCustomerID
-		utils.Logger.Info("Reusing existing Stripe customer ID", zap.String("customer_id", customerID))
-	} else {
-		// Create new Stripe customer
-		customerParams := &stripe.CustomerParams{
-			Email: stripe.String(req.Email),
+		// Try to verify the Stripe customer exists
+		_, err := customer.Get(*stripeCustomerID, nil)
+		if err == nil {
+			customerID = *stripeCustomerID
+			validCustomer = true
+			utils.Logger.Info("Reusing existing Stripe customer ID", zap.String("customer_id", customerID))
+		} else {
+			utils.Logger.Warn("Invalid Stripe customer ID, creating new one", zap.String("customer_id", *stripeCustomerID))
 		}
-		stripeCustomer, err := customer.New(customerParams)
+	}
+
+	if !validCustomer {
+		custParams := &stripe.CustomerParams{Email: stripe.String(req.Email)}
+		newCust, err := customer.New(custParams)
 		if err != nil {
 			utils.Logger.Error("Failed to create Stripe customer", zap.Error(err))
 			http.Error(w, "Failed to create Stripe customer", http.StatusInternalServerError)
 			return
 		}
-		customerID = stripeCustomer.ID
+		customerID = newCust.ID
 
-		// Save new Stripe customer ID if user exists
-		if err == nil && userID != 0 {
+		// Save new customer ID to DB if user exists
+		if userID != 0 {
 			_, err = database.DB.Exec("UPDATE Users SET stripe_customer_id = $1 WHERE id = $2", customerID, userID)
 			if err != nil {
-				utils.Logger.Warn("Failed to update stripe_customer_id in DB", zap.Error(err))
+				utils.Logger.Warn("Failed to update stripe_customer_id", zap.Error(err))
 			}
 		}
 	}
 
-	// Step 3: Check if user already has an active subscription
+	// Step 3: Prevent duplicate subscriptions
 	if userID != 0 {
-		var subID string
-		err = database.DB.QueryRow(
-			"SELECT stripe_subscription_id FROM Subscriptions WHERE user_id = $1 AND expiration_date > $2",
-			userID, time.Now(),
-		).Scan(&subID)
-		if err == nil && subID != "" {
+		var existingSub string
+		err = database.DB.QueryRow(`
+			SELECT stripe_subscription_id
+			FROM Subscriptions
+			WHERE user_id = $1 AND expiration_date > $2
+		`, userID, time.Now()).Scan(&existingSub)
+
+		if err == nil && existingSub != "" {
 			utils.Logger.Warn("User already has an active subscription", zap.Int("user_id", userID))
 			http.Error(w, "You already have an active subscription", http.StatusBadRequest)
 			return
@@ -116,7 +125,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 
 	resp := map[string]string{"url": s.URL}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		utils.Logger.Error("Failed to encode checkout session URL", zap.Error(err))
+		utils.Logger.Error("Failed to return session URL", zap.Error(err))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
