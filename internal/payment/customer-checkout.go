@@ -43,6 +43,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Email = strings.ToLower(req.Email) // normalize email
+	utils.Logger.Info("Email received for subscription", zap.String("email", req.Email))
 
 	// Create a Stripe customer first
 	customerParams := &stripe.CustomerParams{
