@@ -119,7 +119,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	s, err := session.New(params)
 	if err != nil {
 		utils.Logger.Error("Failed to create Stripe checkout session", zap.Error(err))
-		http.Error(w, "Could not create checkout session", http.StatusInternalServerError)
+		http.Error(w, "Could not create checkout session: Stripe customer ID might already exist or be invalid", http.StatusInternalServerError)
 		return
 	}
 
