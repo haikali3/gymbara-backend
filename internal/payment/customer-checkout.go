@@ -20,6 +20,11 @@ type SubscriptionRequest struct {
 }
 
 func CreateSubscription(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	stripeKey := os.Getenv("STRIPE_SECRET_KEY")
 	priceID := os.Getenv("STRIPE_PRICE_ID")
 	frontendURL := os.Getenv("FRONTEND_URL")

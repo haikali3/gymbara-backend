@@ -25,7 +25,7 @@ func CORS(next http.Handler) http.Handler {
 
 		w.Header().Set("Access-Control-Allow-Origin", frontendURL)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		// If it's a preflight request, return without processing further
 		if r.Method == "OPTIONS" {

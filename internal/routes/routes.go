@@ -41,8 +41,7 @@ func RegisterRoutes() {
 	http.Handle("/oauth/callback", middleware.RateLimit(maxRequests, duration)(http.HandlerFunc(oauth.GoogleCallbackHandler)))
 
 	// Payment
-	// http.Handle("/payment/customer-portal", http.HandlerFunc(payment.CustomerPortal))
-	http.Handle("/payment/checkout", http.HandlerFunc(payment.CreateSubscription))
+	http.Handle("/payment/checkout", middleware.CORS(http.HandlerFunc(payment.CreateSubscription)))
 	http.Handle("/payment/cancel-subscription", http.HandlerFunc(payment.CancelSubscription))
 	http.Handle("/payment/get-subscription", secureHandler(http.HandlerFunc(payment.GetSubscription)))
 	http.Handle("/payment/verify-session", http.HandlerFunc(payment.VerifyCheckoutSession))
