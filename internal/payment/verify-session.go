@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"github.com/stripe/stripe-go/v81"
@@ -27,16 +28,20 @@ func VerifyCheckoutSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := map[string]string{
-		"payment_status": string(s.PaymentStatus), // usually "paid"
-		"customer_email": s.CustomerDetails.Email,
-		"subscription_id": func() string {
-			if s.Subscription != nil {
-				return s.Subscription.ID
-			}
-			return ""
-		}(),
+	// Build frontend-friendly response
+	resp := map[string]interface{}{
+		"orderId": s.Subscription.ID,
+		"date":    time.Now().Format("2006-01-02"),
+		"items": []map[string]string{
+			{
+				"name":  "Gymbara Pro Membership",
+				"price": "RM10.00",
+			},
+		},
+		"total": "RM10.00",
 	}
+
+	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		utils.Logger.Error("Failed to encode response", zap.Error(err))
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
