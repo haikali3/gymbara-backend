@@ -35,10 +35,10 @@ func VerifyCheckoutSession(w http.ResponseWriter, r *http.Request) {
 		"items": []map[string]string{
 			{
 				"name":  "Gymbara Pro Membership",
-				"price": "RM10.00",
+				"price": "10.00MYR",
 			},
 		},
-		"total": "RM10.00",
+		"total": "10.00MYR",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
