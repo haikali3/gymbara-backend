@@ -14,6 +14,7 @@ import (
 type SubscriptionResponse struct {
 	SubscriptionID string `json:"subscription_id"`
 	IsActive       bool   `json:"is_active"`
+	ExpirationDate string `json:"expiration_date"`
 }
 
 // GetSubscription retrieves the active subscription for a user.
@@ -30,10 +31,17 @@ func GetSubscription(w http.ResponseWriter, r *http.Request) {
 
 	// ✅ Fetch subscription from database
 	var subscriptionID string
+	var expirationDate string
+
 	err := database.DB.QueryRow(
-		"SELECT stripe_subscription_id FROM Subscriptions WHERE user_id = (SELECT id FROM Users WHERE email = $1) LIMIT 1",
+		`SELECT stripe_subscription_id, expiration_date 
+			FROM Subscriptions 
+			WHERE user_id = (SELECT id FROM Users WHERE email = $1) 
+			AND expiration_date > NOW()
+			ORDER BY expiration_date DESC 
+			LIMIT 1`,
 		email,
-	).Scan(&subscriptionID)
+	).Scan(&subscriptionID, &expirationDate)
 
 	if err != nil {
 		utils.Logger.Error("Failed to fetch subscription", zap.Error(err))
@@ -41,12 +49,15 @@ func GetSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.Logger.Info("Subscription found", zap.String("subscription_id", subscriptionID))
+	utils.Logger.Info("Subscription found",
+		zap.String("subscription_id", subscriptionID),
+		zap.String("expiration_date", expirationDate))
 
 	// ✅ Return the subscription ID
 	response := SubscriptionResponse{
 		SubscriptionID: subscriptionID,
 		IsActive:       true,
+		ExpirationDate: expirationDate,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
