@@ -1,4 +1,3 @@
-// internal/utils/helpers.go
 package utils
 
 import (
@@ -9,6 +8,13 @@ import (
 
 	"go.uber.org/zap"
 )
+
+type APIResponse struct {
+	Status     string      `json:"status"`     // "success" | "fail" | "error"
+	StatusCode int         `json:"statusCode"` // HTTP status code
+	Message    string      `json:"message"`
+	Data       interface{} `json:"data,omitempty"`
+}
 
 func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -60,4 +66,24 @@ func GeneratePlaceholders(count int) (string, []interface{}) {
 		zap.Strings("placeholders", placeholders),
 	)
 	return strings.Join(placeholders, ","), args
+}
+
+func WriteStandardResponse(w http.ResponseWriter, statusCode int, message string, data interface{}) {
+	status := "success"
+	if statusCode >= 400 && statusCode < 500 {
+		status = "fail"
+	} else if statusCode >= 500 {
+		status = "error"
+	}
+
+	response := APIResponse{
+		Status:     status,
+		StatusCode: statusCode,
+		Message:    message,
+		Data:       data,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(response)
 }
