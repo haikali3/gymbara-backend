@@ -85,5 +85,10 @@ func WriteStandardResponse(w http.ResponseWriter, statusCode int, message string
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		Logger.Error("Failed to encode JSON response",
+			zap.Error(err),
+			zap.Int("status", http.StatusInternalServerError),
+		)
+	}
 }
