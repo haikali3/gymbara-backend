@@ -28,7 +28,7 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 	// check if response is in the cache
 	if cachedData, found := workoutCache.Get(cacheKey); found {
 		utils.Logger.Info("Returning cached workout sections")
-		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
+		utils.WriteStandardResponse(w, http.StatusOK, "Workout sections retrieved successfully (from cache)", cachedData)
 		return
 	}
 
@@ -60,7 +60,8 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 	// store cache for 3 hours
 	workoutCache.Set(cacheKey, workoutSections, 3*time.Hour)
 
-	utils.WriteJSONResponse(w, http.StatusOK, workoutSections)
+	// utils.WriteJSONResponse(w, http.StatusOK, workoutSections)
+	utils.WriteStandardResponse(w, http.StatusOK, "Workout sections retrieved successfully", workoutSections)
 }
 
 // Get exercises for initial load
@@ -76,7 +77,7 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 	// check if response is in the cache, if no, query db
 	if cachedData, found := workoutCache.Get(cacheKey); found {
 		utils.Logger.Info("Returning cached exercise list", zap.String("sectionID", workoutSectionID))
-		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
+		utils.WriteStandardResponse(w, http.StatusOK, "Exercise list retrieved successfully (from cache)", cachedData)
 		return
 	}
 
@@ -109,7 +110,7 @@ func GetExercisesList(w http.ResponseWriter, r *http.Request) {
 	// store cache for 3 hours
 	workoutCache.Set(cacheKey, exerciseList, 3*time.Hour)
 
-	utils.WriteJSONResponse(w, http.StatusOK, exerciseList)
+	utils.WriteStandardResponse(w, http.StatusOK, "Exercise list retrieved successfully", exerciseList)
 }
 
 // Get detailed exercise information
@@ -126,7 +127,7 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	// Check cache first
 	if cachedData, found := workoutCache.Get(cacheKey); found {
 		utils.Logger.Info("Returning cached exercise details", zap.String("workout_section_id", workoutSectionID))
-		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
+		utils.WriteStandardResponse(w, http.StatusOK, "Exercise details retrieved successfully (from cache)", cachedData)
 		return
 	}
 
@@ -170,7 +171,7 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 	workoutCache.Set(cacheKey, exerciseDetails, 3*time.Hour)
 
-	utils.WriteJSONResponse(w, http.StatusOK, exerciseDetails)
+	utils.WriteStandardResponse(w, http.StatusOK, "Exercise details retrieved successfully", exerciseDetails)
 }
 
 func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +186,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 
 	if cachedData, found := workoutCache.Get(cacheKey); found {
 		utils.Logger.Info("Returning cached workout sections with exercises", zap.String("cacheKey", cacheKey))
-		utils.WriteJSONResponse(w, http.StatusOK, cachedData)
+		utils.WriteStandardResponse(w, http.StatusOK, "Workout sections with exercises retrieved successfully (from cache)", cachedData)
 		return
 	}
 
@@ -282,7 +283,7 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	utils.Logger.Info("Storing workout sections with exercises in cache", zap.String("cacheKey", cacheKey))
 	workoutCache.Set(cacheKey, sections, 3*time.Hour)
 
-	utils.WriteJSONResponse(w, http.StatusOK, sections)
+	utils.WriteStandardResponse(w, http.StatusOK, "Workout sections with exercises retrieved successfully", sections)
 }
 
 // Case 1: First-time submission (New row inserted)
@@ -489,11 +490,11 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	utils.Logger.Info("Cache invalidated", zap.String("cacheKey", "exercise_details_"+sectionIDStr))
 
 	// return success response
-	utils.WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{
-		"message":            "user exercises details submitted successfully",
+	utils.WriteStandardResponse(w, http.StatusCreated, "User exercise details submitted successfully", map[string]interface{}{
 		"user_workout_id":    userWorkoutID,
 		"inserted_exercises": insertedExercises,
 	})
+
 	utils.Logger.Info("User exercise details submitted successfully", zap.Int("user_workout_id", userWorkoutID))
 }
 
@@ -544,5 +545,5 @@ func GetUserProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.Logger.Info("User progress retrieved successfully", zap.Int("user_id", userID), zap.Int("records", len(progressData)))
-	utils.WriteJSONResponse(w, http.StatusOK, progressData)
+	utils.WriteStandardResponse(w, http.StatusOK, "User progress retrieved successfully", progressData)
 }
