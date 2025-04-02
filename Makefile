@@ -16,6 +16,11 @@ build-prod:
 	@echo "Building production binary..."
 	GOOS=linux GOARCH=amd64 go build -o bin/$(APP_NAME) ./cmd/main.go
 
+# Create a new migration file with a specific name
+create-migration:
+	@read -p "Enter migration name (use underscores instead of spaces, e.g., 'add_users_table'): " NAME; \
+	goose -dir internal/database/migrations create $$NAME sql
+
 # Database migrations
 migrate-up:
 	goose -dir internal/database/migrations postgres "$(DB_URL)" up
@@ -31,11 +36,6 @@ migrate-up-to:
 
 migrate-down-to:
 	goose -dir internal/database/migrations postgres "$(DB_URL)" down-to $(VERSION)
-
-# Create a new migration file with a specific name
-create-migration:
-	@read -p "Enter migration name: " NAME; \
-	goose -dir internal/database/migrations create $$NAME sql
 
 # Lint code
 lint:
