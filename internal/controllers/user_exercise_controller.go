@@ -72,7 +72,10 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 				utils.HandleError(w, "Transaction commit failed", http.StatusInternalServerError, commitErr)
 				return
 			} else {
-				utils.Logger.Info("Transaction committed successfully")
+				utils.Logger.Info("Transaction committed successfully",
+					zap.Int("user_id", userID),
+					zap.Int("section_id", request.SectionID),
+				)
 			}
 		}
 	}()
@@ -199,7 +202,16 @@ func SubmitUserExerciseDetails(w http.ResponseWriter, r *http.Request) {
 
 		_, txErr = tx.Exec(query, values...)
 		if txErr != nil {
-			utils.HandleError(w, fmt.Sprintf("Failed to insert user exercise details for exercise_id: %d", request.Exercises[len(insertedExercises)].ExerciseID), http.StatusInternalServerError, txErr)
+			exerciseID := 0
+			if len(insertedExercises) > 0 {
+				exerciseID = insertedExercises[len(insertedExercises)-1].ExerciseID
+			}
+			utils.HandleError(
+				w,
+				fmt.Sprintf("Failed to insert user exercise details for exercise_id: %d", exerciseID),
+				http.StatusInternalServerError,
+				txErr,
+			)
 			return
 		}
 
