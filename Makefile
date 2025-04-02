@@ -18,7 +18,7 @@ build-prod:
 
 # Create a new migration file with a specific name
 create-migration:
-	@read -p "Enter migration name: " NAME; \
+	@read -p "Enter migration name (use underscores instead of spaces, e.g., 'add_users_table'): " NAME; \
 	goose -dir internal/database/migrations create $$NAME sql
 
 # Database migrations
