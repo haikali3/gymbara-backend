@@ -24,10 +24,10 @@ func RegisterRoutes() {
 	}
 
 	// Workout routes
-	http.Handle("/workout-sections", secureHandler(controllers.GetWorkoutSections))
-	http.Handle("/workout-sections/list", secureHandler(controllers.GetExercisesList))
-	http.Handle("/workout-sections/details", secureHandler(controllers.GetExerciseDetails))
-	http.Handle("/workout-sections/exercises", secureHandler(controllers.GetWorkoutSectionsWithExercises))
+	http.Handle("/workout-sections", secureHandler(middleware.RequirePremium(controllers.GetWorkoutSections)))
+	http.Handle("/workout-sections/list", secureHandler(middleware.RequirePremium(controllers.GetExercisesList)))
+	http.Handle("/workout-sections/details", secureHandler(middleware.RequirePremium(controllers.GetExerciseDetails)))
+	http.Handle("/workout-sections/exercises", secureHandler(middleware.RequirePremium(controllers.GetWorkoutSectionsWithExercises)))
 
 	// User submit exercise details
 	http.Handle("/workout-sections/user-exercise-details", secureHandler(controllers.SubmitUserExerciseDetails))
