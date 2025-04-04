@@ -10,19 +10,29 @@ import (
 
 func RequirePremium(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Corrected type assertion
 		userIDValue := r.Context().Value(UserIDKey)
 		userID, ok := userIDValue.(int)
 		if !ok {
-			utils.HandleError(w, "Invalid user ID in context", http.StatusUnauthorized, nil)
+			utils.WriteStandardResponse(w, http.StatusUnauthorized, "Invalid user ID in context", nil)
 			return
 		}
 
-		//query subs
 		var expiration time.Time
-		err := database.DB.QueryRow("SELECT expiration_date FROM subscriptions WHERE user_id = $1", userID).Scan(&expiration)
-		if err != nil || time.Now().After(expiration) {
-			utils.HandleError(w, "Access denied: Subscription required", http.StatusPaymentRequired, nil)
+		err := database.DB.QueryRow(`
+			SELECT expiration_date 
+			FROM subscriptions 
+			WHERE user_id = $1 
+			ORDER BY expiration_date DESC 
+			LIMIT 1
+		`, userID).Scan(&expiration)
+
+		if err != nil {
+			utils.WriteStandardResponse(w, http.StatusPaymentRequired, "Access denied: No active subscription", nil)
+			return
+		}
+
+		if time.Now().After(expiration) {
+			utils.WriteStandardResponse(w, http.StatusPaymentRequired, "Access denied: Subscription expired", nil)
 			return
 		}
 
