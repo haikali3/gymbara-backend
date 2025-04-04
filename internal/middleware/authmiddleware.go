@@ -25,7 +25,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		accessToken, err := r.Cookie("access_token")
 		if err != nil {
 			utils.Logger.Error("Access token cookie missing", zap.Error(err))
-			http.Error(w, "Access token not found", http.StatusUnauthorized)
+			utils.WriteStandardResponse(w, http.StatusUnauthorized, "Access token not found", nil)
 			return
 		}
 
@@ -35,7 +35,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		userID, err := auth.ValidateToken(accessToken.Value)
 		if err != nil {
 			utils.Logger.Error("Invalid access token", zap.Error(err))
-			http.Error(w, "Invalid access token", http.StatusUnauthorized)
+			utils.WriteStandardResponse(w, http.StatusUnauthorized, "Invalid access token", nil)
 			return
 		}
 
@@ -46,7 +46,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		err = database.DB.QueryRow("SELECT email FROM Users WHERE id = $1", userID).Scan(&email)
 		if err != nil {
 			utils.Logger.Error("Failed to fetch user email from database", zap.Error(err))
-			http.Error(w, "User email not found", http.StatusUnauthorized)
+			utils.WriteStandardResponse(w, http.StatusUnauthorized, "User email not found", nil)
 			return
 		}
 

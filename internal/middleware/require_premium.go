@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
@@ -8,21 +9,37 @@ import (
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 )
 
-func RequirePremium(next http.HandlerFunc) http.HandlerFunc {
+func RequireSubscription(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Corrected type assertion
 		userIDValue := r.Context().Value(UserIDKey)
 		userID, ok := userIDValue.(int)
 		if !ok {
-			utils.HandleError(w, "Invalid user ID in context", http.StatusUnauthorized, nil)
+			utils.WriteStandardResponse(w, http.StatusUnauthorized, "Invalid user ID in context", nil)
 			return
 		}
 
-		//query subs
 		var expiration time.Time
-		err := database.DB.QueryRow("SELECT expiration_date FROM subscriptions WHERE user_id = $1", userID).Scan(&expiration)
-		if err != nil || time.Now().After(expiration) {
-			utils.HandleError(w, "Access denied: Subscription required", http.StatusPaymentRequired, nil)
+		err := database.DB.QueryRow(`
+			SELECT expiration_date 
+			FROM subscriptions 
+			WHERE user_id = $1 
+			ORDER BY expiration_date DESC 
+			LIMIT 1
+		`, userID).Scan(&expiration)
+		if err != nil {
+			// differentiate between no subscription and other errors.
+			if err == sql.ErrNoRows {
+				utils.WriteStandardResponse(w, http.StatusPaymentRequired, "Access denied: No subscription found", nil)
+			} else {
+				utils.WriteStandardResponse(w, http.StatusInternalServerError, "Internal server error", nil)
+			}
+			return
+		}
+
+		// change current time to the same location as expiration to ensure proper comparison.
+		now := time.Now().In(expiration.Location())
+		if now.After(expiration) {
+			utils.WriteStandardResponse(w, http.StatusPaymentRequired, "Access denied: Subscription expired", nil)
 			return
 		}
 
