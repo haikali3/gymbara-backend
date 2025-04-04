@@ -16,18 +16,6 @@ type APIResponse struct {
 	Data       interface{} `json:"data,omitempty"`
 }
 
-func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		Logger.Error("Failed to encode JSON response",
-			zap.Error(err),
-			zap.Int("status", http.StatusInternalServerError),
-		)
-		HandleError(w, "Unable to encode response", http.StatusInternalServerError, err)
-	}
-}
-
 func HandleError(w http.ResponseWriter, msg string, status int, err error) {
 	response := map[string]interface{}{
 		"error":  msg,

@@ -11,6 +11,34 @@ import (
 	"github.com/haikali3/gymbara-backend/internal/payment/webhook"
 )
 
+// RegisterRoutes sets up all the HTTP routes for the application.
+// It applies middleware for security, rate limiting, CORS, and authentication
+// to ensure proper access control and request handling. The routes are grouped
+// into the following categories:
+//
+// 1. Workout Routes:
+//    - Handles workout-related endpoints such as fetching workout sections,
+//      exercises, and their details. These routes require a subscription.
+//
+// 2. User Routes:
+//    - Includes endpoints for submitting user exercise details, fetching user
+//      progress, and retrieving user information.
+//
+// 3. OAuth Routes:
+//    - Provides endpoints for handling OAuth login and callback functionality
+//      using Google authentication.
+//
+// 4. Payment Routes:
+//    - Manages payment-related endpoints such as creating subscriptions,
+//      verifying checkout sessions, canceling subscriptions, and retrieving
+//      subscription details.
+//
+// 5. Webhook Routes:
+//    - Handles Stripe webhook events, such as checkout session completion.
+//
+// Middleware is applied to ensure proper security and functionality for each
+// route group.
+
 func RegisterRoutes() {
 	const maxRequests = 10
 	const duration = time.Second
@@ -20,7 +48,7 @@ func RegisterRoutes() {
 		corsHandler := middleware.CORS
 		authHandler := middleware.AuthMiddleware
 
-		return rateLimitedHandler(corsHandler(authHandler(handler)))
+		return corsHandler(rateLimitedHandler(authHandler(handler)))
 	}
 
 	// Workout routes
@@ -42,9 +70,9 @@ func RegisterRoutes() {
 
 	// Payment
 	http.Handle("/payment/checkout", middleware.CORS(http.HandlerFunc(payment.CreateSubscription)))
-	http.Handle("/payment/cancel-subscription", http.HandlerFunc(payment.CancelSubscription))
-	http.Handle("/payment/get-subscription", secureHandler(http.HandlerFunc(payment.GetSubscription)))
 	http.Handle("/payment/verify-session", middleware.CORS(http.HandlerFunc(payment.VerifyCheckoutSession)))
+	http.Handle("/payment/cancel-subscription", secureHandler(payment.CancelSubscription))
+	http.Handle("/payment/get-subscription", secureHandler(payment.GetSubscription))
 
 	// Webhook
 	http.Handle("/webhook/stripe", http.HandlerFunc(webhook.CheckoutSessionCompleted))

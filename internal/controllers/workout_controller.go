@@ -55,7 +55,6 @@ func GetWorkoutSections(w http.ResponseWriter, r *http.Request) {
 	// store cache for 3 hours
 	workoutCache.Set(cacheKey, workoutSections, 3*time.Hour)
 
-	// utils.WriteJSONResponse(w, http.StatusOK, workoutSections)
 	utils.WriteStandardResponse(w, http.StatusOK, "Workout sections retrieved successfully", workoutSections)
 }
 
