@@ -1,5 +1,5 @@
 # Variables
-DB_URL := postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+DB_URL := postgres://postgres:postgres@localhost:5432/gymbara?sslmode=disable
 APP_NAME := gymbara-backend
 
 # Run the app in development
@@ -36,6 +36,13 @@ migrate-up-to:
 
 migrate-down-to:
 	goose -dir internal/database/migrations postgres "$(DB_URL)" down-to $(VERSION)
+
+# reset gymbara DB
+reset-db:
+	@echo "👉 Dropping gymbara DB…"
+	dropdb --if-exists gymbara
+	@echo "👉 Recreating gymbara DB…"
+	createdb gymbara
 
 # Lint code
 lint:
