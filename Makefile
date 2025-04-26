@@ -1,5 +1,5 @@
 # Variables
-DB_URL := postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+DB_URL := postgres://postgres:postgres@localhost:5432/gymbara?sslmode=disable
 APP_NAME := gymbara-backend
 
 # Run the app in development
@@ -36,6 +36,37 @@ migrate-up-to:
 
 migrate-down-to:
 	goose -dir internal/database/migrations postgres "$(DB_URL)" down-to $(VERSION)
+
+# Create a new seed file
+create-seed:
+	@read -p "Enter seed name (use underscores, e.g., 'add_workout_seed'): " NAME; \
+	goose -dir internal/database/seeds \
+      -table goose_seed_version \
+      create $$NAME sql
+
+# Run only seeds
+seed-up:
+	goose -dir internal/database/seeds \
+      -table goose_seed_version \
+      postgres "$(DB_URL)" up
+
+# Roll back the last seed batch
+seed-down:
+	goose -dir internal/database/seeds \
+      -table goose_seed_version \
+      postgres "$(DB_URL)" down
+
+# Migrations and Seed
+migrate-and-seed: migrate-up
+	goose -dir internal/database/seeds -table goose_seed_version \
+      postgres "$(DB_URL)" up
+
+# reset gymbara DB
+reset-db:
+	@echo "👉 Dropping gymbara DB…"
+	dropdb --if-exists gymbara
+	@echo "👉 Recreating gymbara DB…"
+	createdb gymbara
 
 # Lint code
 lint:
