@@ -364,8 +364,7 @@ func corsMiddleware(next http.Handler) http.Handler {
    - Endpoint usage
 
 ## ERD Diagram
-
-![alt text](image.png)
+![alt text](image-1.png)
 
 ## Additional Workout Features with gRPC
 
