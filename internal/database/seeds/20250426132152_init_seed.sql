@@ -1,9 +1,17 @@
 -- +goose Up
 -- +goose StatementBegin
-SELECT 'up SQL query';
+
+INSERT INTO WorkoutSections (name, route) VALUES
+  ('Full Body', 'full_body'),
+  ('Upper Body', 'upper_body'),
+  ('Lower Body', 'lower_body');
+
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-SELECT 'down SQL query';
+
+DELETE FROM WorkoutSections
+  WHERE route IN ('full_body', 'upper_body', 'lower_body');
+
 -- +goose StatementEnd
