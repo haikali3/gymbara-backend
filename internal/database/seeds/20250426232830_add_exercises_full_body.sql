@@ -1,3 +1,4 @@
+-- file: internal/database/seeds/20250426232830_add_exercises_full_body.sql
 -- +goose Up
 -- +goose StatementBegin
 INSERT INTO
@@ -83,6 +84,7 @@ WHERE
   );
 
 -- rewind the auto-increment back to 1
-ALTER SEQUENCE exercises_id_seq RESTART WITH 1;
+ALTER SEQUENCE exercises_id_seq
+RESTART WITH 1;
 
 -- +goose StatementEnd
