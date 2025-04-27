@@ -56,6 +56,23 @@ seed-down:
       -table goose_seed_version \
       postgres "$(DB_URL)" down
 
+seed-status:
+	goose -dir internal/database/seeds \
+      -table goose_seed_version \
+      postgres "$(DB_URL)" status
+
+# apply seeds up to a specific version
+seed-up-to:
+	goose -dir internal/database/seeds \
+      -table goose_seed_version \
+      postgres "$(DB_URL)" up-to $(VERSION)
+
+# roll back seeds down to a specific version
+seed-down-to:
+	goose -dir internal/database/seeds \
+      -table goose_seed_version \
+      postgres "$(DB_URL)" down-to $(VERSION)
+
 # Migrations and Seed
 migrate-and-seed: migrate-up
 	goose -dir internal/database/seeds -table goose_seed_version \
