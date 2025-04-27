@@ -83,8 +83,4 @@ WHERE
     'Hanging Leg Raise'
   );
 
--- rewind the auto-increment back to 1
-ALTER SEQUENCE exercises_id_seq
-RESTART WITH 1;
-
 -- +goose StatementEnd

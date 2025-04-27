@@ -26,7 +26,4 @@ WHERE (exercise_id, week_start, week_end) IN (
   (8, 5, 8)
 );
 
--- Reset the ID auto-increment sequence
-ALTER SEQUENCE exercisedetails_id_seq RESTART WITH 1;
-
 -- +goose StatementEnd
