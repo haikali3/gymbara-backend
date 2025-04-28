@@ -1,5 +1,4 @@
 -- file: internal/database/seeds/20250427001212_add_exercise_details.sql
-
 -- +goose Up
 -- +goose StatementBegin
 INSERT INTO ExerciseDetails (exercise_id, week_start, week_end, warmup_sets, working_sets, reps, load, rpe, rest_time) VALUES 
@@ -26,8 +25,5 @@ WHERE (exercise_id, week_start, week_end) IN (
   (7, 5, 8),
   (8, 5, 8)
 );
-
--- Reset the ID auto-increment sequence
-ALTER SEQUENCE exercisedetails_id_seq RESTART WITH 1;
 
 -- +goose StatementEnd

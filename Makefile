@@ -73,6 +73,20 @@ seed-down-to:
       -table goose_seed_version \
       postgres "$(DB_URL)" down-to $(VERSION)
 
+seed-reset:
+	@echo "🧹 wiping out data & schemas…"
+	psql postgres://postgres:postgres@localhost:5432/gymbara \
+	  -c "DELETE FROM exercisedetails; DELETE FROM exercises; DELETE FROM workoutsections;"
+	psql postgres://postgres:postgres@localhost:5432/gymbara \
+	  -c "ALTER SEQUENCE exercisedetails_id_seq RESTART WITH 1; ALTER SEQUENCE exercises_id_seq RESTART WITH 1; ALTER SEQUENCE workoutsections_id_seq RESTART WITH 1;"
+	psql postgres://postgres:postgres@localhost:5432/gymbara \
+	  -c "TRUNCATE TABLE goose_seed_version;"
+	@echo "🚀 re-seeding from zero…"
+	goose -dir internal/database/seeds \
+	  -table goose_seed_version \
+	  postgres "postgres://postgres:postgres@localhost:5432/gymbara?sslmode=disable" up
+
+
 # Migrations and Seed
 migrate-and-seed: migrate-up
 	goose -dir internal/database/seeds -table goose_seed_version \
