@@ -1,3 +1,4 @@
+// internal/database/statements.go
 package database
 
 import (
@@ -24,7 +25,11 @@ func PrepareStatements() {
 	}
 
 	StmtGetExercisesBySectionID, err = DB.Prepare(`
-    SELECT e.name, ed.reps, ed.working_sets, ed.load
+    SELECT
+      e.name,
+      ed.reps,
+      ed.working_sets,
+      COALESCE(ed.load, 0) AS load
     FROM Exercises e
     JOIN ExerciseDetails ed ON e.id = ed.exercise_id
     WHERE e.workout_section_id = $1
@@ -34,10 +39,18 @@ func PrepareStatements() {
 	}
 
 	StmtGetExerciseDetails, err = DB.Prepare(`
-  SELECT e.id, e.name, ed.warmup_sets, ed.working_sets, ed.reps, ed.load, ed.rpe, ed.rest_time
-  FROM Exercises e
-  JOIN ExerciseDetails ed ON e.id = ed.exercise_id
-  WHERE e.workout_section_id = $1
+		SELECT
+			e.id,
+			e.name,
+			ed.warmup_sets,
+			ed.working_sets,
+			ed.reps,
+			COALESCE(ed.load, 0) AS load,
+			ed.rpe,
+			ed.rest_time
+		FROM Exercises e
+		JOIN ExerciseDetails ed ON e.id = ed.exercise_id
+		WHERE e.workout_section_id = $1
   `)
 	if err != nil {
 		utils.Logger.Fatal("Failed to prepare StmtGetExerciseDetails", zap.Error(err))
