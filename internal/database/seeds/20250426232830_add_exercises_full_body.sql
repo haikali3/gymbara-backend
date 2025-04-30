@@ -4,7 +4,7 @@
 INSERT INTO
   Exercises (
     name,
-    workoutsection_id,
+    workout_section_id,
     notes,
     substitution_1,
     substitution_2
