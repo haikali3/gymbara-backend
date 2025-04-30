@@ -1,3 +1,5 @@
+// internal/controllers/workout_controller.go
+
 package controllers
 
 import (
@@ -80,23 +82,18 @@ func GetWorkoutSectionsWithExercises(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := fmt.Sprintf(`
-			SELECT
-				ws.id AS section_id,
-				ws.name AS section_name,
-				ws.route AS section_route,
-				e.id AS exercise_id,
-				e.name AS exercise_name
-			FROM
-				WorkoutSections ws
-			LEFT JOIN
-				Exercises e
-			ON
-				ws.id = e.workout_section_id
-			WHERE
-				ws.id IN (%s)
-			ORDER BY
-				ws.id, e.id;
-    `, placeholders)
+		SELECT
+			ws.id              AS section_id,
+			ws.name            AS section_name,
+			ws.route           AS section_route,
+			COALESCE(e.id, 0)    AS exercise_id,
+			COALESCE(e.name, '') AS exercise_name
+		FROM WorkoutSections ws
+		LEFT JOIN Exercises e
+			ON ws.id = e.workout_section_id
+		WHERE ws.id IN (%s)
+		ORDER BY ws.id, e.id;
+`, placeholders)
 
 	stmt, err := database.DB.Prepare(query)
 	if err != nil {
