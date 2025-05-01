@@ -1,3 +1,4 @@
+// internal/payment/cancel-subscription.go
 package payment
 
 import (
@@ -21,36 +22,35 @@ type CancelSubscriptionRequest struct {
 func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 	var req CancelSubscriptionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		utils.WriteStandardResponse(w, http.StatusBadRequest, "Invalid request payload", nil)
 		return
 	}
-
 	if req.SubscriptionID == "" {
-		http.Error(w, "Subscription ID is required", http.StatusBadRequest)
+		utils.WriteStandardResponse(w, http.StatusBadRequest, "Subscription ID is required", nil)
 		return
 	}
 
-	// Set your Stripe secret key
+	// Initialize Stripe
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 
-	// ✅ Fetch subscription from Stripe to verify existence
+	// Verify subscription exists in Stripe
 	stripeSub, err := subscription.Get(req.SubscriptionID, nil)
 	if err != nil {
 		utils.Logger.Error("Subscription not found in Stripe", zap.Error(err))
-		http.Error(w, "Subscription ID not found in Stripe", http.StatusNotFound)
+		utils.WriteStandardResponse(w, http.StatusNotFound, "Subscription ID not found in Stripe", nil)
 		return
 	}
-
 	utils.Logger.Info("Subscription found in Stripe", zap.String("subscription_id", stripeSub.ID))
 
-	// Cancel the subscription at Stripe
+	// Cancel in Stripe
 	canceledSub, err := subscription.Cancel(req.SubscriptionID, nil)
 	if err != nil {
 		utils.Logger.Error("Failed to cancel subscription", zap.Error(err))
-		http.Error(w, "Failed to cancel subscription", http.StatusInternalServerError)
+		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Failed to cancel subscription", nil)
 		return
 	}
 
+	// Lookup the user in our DB
 	var userID string
 	err = database.DB.QueryRow(
 		"SELECT user_id FROM Subscriptions WHERE stripe_subscription_id = $1",
@@ -58,11 +58,11 @@ func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 	).Scan(&userID)
 	if err != nil {
 		utils.Logger.Error("Failed to get user ID from subscription", zap.Error(err))
-		http.Error(w, "Could not find user for this subscription", http.StatusInternalServerError)
+		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Could not find user for this subscription", nil)
 		return
 	}
 
-	// ✅ Update database to reflect cancellation
+	// Mark user as non-premium
 	_, err = database.DB.Exec(
 		"UPDATE Users SET is_premium = FALSE WHERE id = $1",
 		userID,
@@ -70,21 +70,15 @@ func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			utils.Logger.Warn("Subscription ID not found in database", zap.String("subscription_id", req.SubscriptionID))
-			http.Error(w, "Subscription not found in database", http.StatusNotFound)
+			utils.WriteStandardResponse(w, http.StatusNotFound, "Subscription not found in database", nil)
 			return
 		}
-		utils.Logger.Error("Failed to get user ID from subscription", zap.Error(err))
-		http.Error(w, "Could not find user for this subscription", http.StatusInternalServerError)
+		utils.Logger.Error("Failed to update user status", zap.Error(err))
+		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Could not update user subscription status", nil)
 		return
 	}
 
-	// Return a success response with the canceled subscription details.
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(canceledSub); err != nil {
-		utils.Logger.Error("Failed to encode response", zap.Error(err))
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
-
+	// Success response
 	utils.Logger.Info("Subscription canceled successfully", zap.String("subscription_id", req.SubscriptionID))
+	utils.WriteStandardResponse(w, http.StatusOK, "Subscription cancelled successfully", canceledSub)
 }
