@@ -1,3 +1,4 @@
+// internal/payment/customer-checkout.go
 package payment
 
 import (

@@ -1,3 +1,5 @@
+// internal/payment/verify-session.go
+
 package payment
 
 import (
