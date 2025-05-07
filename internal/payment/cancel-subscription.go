@@ -3,6 +3,7 @@ package payment
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -70,22 +71,18 @@ func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// // 3) (Optional) mark user non-premium immediately in UI
-	// _, _ = database.DB.Exec(
-	// 	`UPDATE Users
-	// 			SET is_premium = FALSE
-	// 		WHERE id = (
-	// 			SELECT user_id FROM Subscriptions WHERE stripe_subscription_id = $1
-	// 		)`,
-	// 	req.SubscriptionID,
-	// )
-
-	// 4) Build response payload
+	// 3) Build response payload with clearer messaging
 	nextRenew := expiry.AddDate(0, 1, 0)
+	message := fmt.Sprintf(
+		"Your subscription has been cancelled. You remain active until %s. "+
+			"If you change your mind, you can renew on %s.",
+		expiry.Format("Jan 2, 2006"),
+		nextRenew.Format("Jan 2, 2006"),
+	)
 	payload := map[string]string{
 		"expiration_date": expiry.Format(time.RFC3339),
 		"next_renewal":    nextRenew.Format(time.RFC3339),
-		"message":         "Your subscription has been cancelled. You remain active until " + expiry.Format("Jan 2, 2006") + ". If you don’t renew, it will auto-renew on " + nextRenew.Format("Jan 2, 2006") + ".",
+		"message":         message,
 	}
 
 	utils.Logger.Info("Cancellation scheduled at period end",
