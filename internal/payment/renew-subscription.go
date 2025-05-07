@@ -2,12 +2,12 @@
 package payment
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
+	"github.com/haikali3/gymbara-backend/internal/middleware"
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
@@ -17,10 +17,7 @@ import (
 
 // RenewSubscriptionRequest represents the JSON payload for renewing.
 type RenewSubscriptionRequest struct {
-	SubscriptionID string `json:"subscription_id"`
-	CustomerID     string `json:"customer_id"`
-	PriceID        string `json:"price_id"`
-	FrontendURL    string `json:"frontend_url"`
+	// No fields needed as we get email from auth context
 }
 
 // RenewSubscriptionResponse is what we return on success.
@@ -32,29 +29,52 @@ type RenewSubscriptionResponse struct {
 
 // RenewSubscription either resumes a pending cancel or starts a fresh sub.
 func RenewSubscription(w http.ResponseWriter, r *http.Request) {
-	var req RenewSubscriptionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteStandardResponse(w, http.StatusBadRequest, "Invalid request payload", nil)
-		return
-	}
-	if req.SubscriptionID == "" {
-		utils.WriteStandardResponse(w, http.StatusBadRequest, "Subscription ID is required", nil)
+	// ✅ Extract email from AuthMiddleware context
+	email, ok := r.Context().Value(middleware.UserEmailKey).(string)
+	if !ok || email == "" {
+		utils.Logger.Error("Failed to retrieve email from context")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	// 1) Look up current expiration_date
+	utils.Logger.Info("Email retrieved in RenewSubscription", zap.String("email", email))
+
+	stripeKey := os.Getenv("STRIPE_SECRET_KEY")
+	frontendURL := os.Getenv("FRONTEND_URL")
+	priceID := os.Getenv("STRIPE_PRICE_ID")
+
+	if stripeKey == "" || frontendURL == "" || priceID == "" {
+		utils.Logger.Error("Missing required environment variables")
+		http.Error(w, "Missing Stripe config", http.StatusInternalServerError)
+		return
+	}
+
+	// 1) Look up current subscription details
+	var subscriptionID string
 	var expiry time.Time
+	var customerID string
 	err := database.DB.QueryRow(
-		`SELECT expiration_date FROM Subscriptions WHERE stripe_subscription_id = $1`,
-		req.SubscriptionID,
-	).Scan(&expiry)
+		`SELECT s.stripe_subscription_id, s.expiration_date, u.stripe_customer_id 
+			FROM Subscriptions s
+			JOIN Users u ON s.user_id = u.id
+			WHERE u.email = $1
+			ORDER BY s.expiration_date DESC
+			LIMIT 1`,
+		email,
+	).Scan(&subscriptionID, &expiry, &customerID)
 	if err != nil {
-		utils.Logger.Error("Failed to fetch subscription expiry", zap.Error(err))
+		utils.Logger.Error("Failed to fetch subscription details", zap.Error(err))
 		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Could not fetch subscription", nil)
 		return
 	}
 
-	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+	if customerID == "" {
+		utils.Logger.Error("No customer ID found for subscription")
+		utils.WriteStandardResponse(w, http.StatusInternalServerError, "No customer ID found", nil)
+		return
+	}
+
+	stripe.Key = stripeKey
 	now := time.Now()
 
 	// 2) Decide resume vs. new Checkout
@@ -64,7 +84,7 @@ func RenewSubscription(w http.ResponseWriter, r *http.Request) {
 	if now.Before(expiry) {
 		// a) Resume the pending cancellation
 		updatedSub, err = subscription.Update(
-			req.SubscriptionID,
+			subscriptionID,
 			&stripe.SubscriptionParams{
 				CancelAtPeriodEnd: stripe.Bool(false),
 			},
@@ -77,15 +97,15 @@ func RenewSubscription(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// b) Already expired → create a new Checkout Session
 		params := &stripe.CheckoutSessionParams{
-			Customer:           stripe.String(req.CustomerID),
+			Customer:           stripe.String(customerID),
 			PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
 			LineItems: []*stripe.CheckoutSessionLineItemParams{{
-				Price:    stripe.String(req.PriceID),
+				Price:    stripe.String(priceID),
 				Quantity: stripe.Int64(1),
 			}},
 			Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-			SuccessURL: stripe.String(req.FrontendURL + "/payment/success?session_id={CHECKOUT_SESSION_ID}"),
-			CancelURL:  stripe.String(req.FrontendURL + "/payment/cancel"),
+			SuccessURL: stripe.String(frontendURL + "/payment/success?session_id={CHECKOUT_SESSION_ID}"),
+			CancelURL:  stripe.String(frontendURL + "/payment/cancel"),
 		}
 		sess, err = session.New(params)
 		if err != nil {
@@ -104,7 +124,7 @@ func RenewSubscription(w http.ResponseWriter, r *http.Request) {
 	newExpiry := time.Unix(updatedSub.CurrentPeriodEnd, 0)
 	_, err = database.DB.Exec(
 		`UPDATE Subscriptions SET expiration_date = $1 WHERE stripe_subscription_id = $2`,
-		newExpiry, req.SubscriptionID,
+		newExpiry, subscriptionID,
 	)
 	if err != nil {
 		utils.Logger.Error("Failed to update subscription expiry in DB", zap.Error(err))
@@ -119,7 +139,7 @@ func RenewSubscription(w http.ResponseWriter, r *http.Request) {
 		NextRenewal: nextRenew.Format(time.RFC3339),
 	}
 	utils.Logger.Info("Subscription renewed",
-		zap.String("subscription_id", req.SubscriptionID),
+		zap.String("subscription_id", subscriptionID),
 		zap.Time("next_renewal", nextRenew),
 	)
 	utils.WriteStandardResponse(w, http.StatusOK, "Subscription renewed", payload)
