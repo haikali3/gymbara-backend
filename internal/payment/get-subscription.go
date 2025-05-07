@@ -4,18 +4,22 @@ package payment
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/middleware"
 	"github.com/haikali3/gymbara-backend/pkg/utils"
+	"github.com/stripe/stripe-go/v81"
+	"github.com/stripe/stripe-go/v81/subscription"
 	"go.uber.org/zap"
 )
 
 // SubscriptionResponse represents the JSON response with the active subscription.
 type SubscriptionResponse struct {
-	SubscriptionID string `json:"subscription_id"`
-	IsActive       bool   `json:"is_active"`
-	ExpirationDate string `json:"expiration_date"`
+	SubscriptionID    string `json:"subscription_id"`
+	IsActive          bool   `json:"is_active"`
+	ExpirationDate    string `json:"expiration_date"`
+	CancelAtPeriodEnd bool   `json:"cancel_at_period_end"`
 }
 
 // GetSubscription retrieves the active subscription for a user.
@@ -50,15 +54,26 @@ func GetSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch the CancelAtPeriodEnd flag from Stripe
+	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+	stripeSub, err := subscription.Get(subscriptionID, nil)
+	if err != nil {
+		utils.Logger.Error("Failed to fetch subscription from Stripe", zap.Error(err))
+		http.Error(w, "Could not verify subscription", http.StatusInternalServerError)
+		return
+	}
+
 	utils.Logger.Info("Subscription found",
 		zap.String("subscription_id", subscriptionID),
-		zap.String("expiration_date", expirationDate))
+		zap.String("expiration_date", expirationDate),
+		zap.Bool("cancel_at_period_end", stripeSub.CancelAtPeriodEnd))
 
 	// ✅ Return the subscription ID
 	response := SubscriptionResponse{
-		SubscriptionID: subscriptionID,
-		IsActive:       true,
-		ExpirationDate: expirationDate,
+		SubscriptionID:    subscriptionID,
+		IsActive:          true,
+		ExpirationDate:    expirationDate,
+		CancelAtPeriodEnd: stripeSub.CancelAtPeriodEnd,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
