@@ -141,7 +141,11 @@ func handleByEmail(subID, email string, ts int64) {
 		utils.Logger.Error("DB tx begin failed", zap.Error(err))
 		return
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			utils.Logger.Error("Failed to rollback transaction", zap.Error(err))
+		}
+	}()
 
 	// upsert user (same as before)…
 	var userID int
