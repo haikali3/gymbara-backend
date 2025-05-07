@@ -3,8 +3,10 @@ package payment
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/pkg/utils"
@@ -18,7 +20,7 @@ type CancelSubscriptionRequest struct {
 	SubscriptionID string `json:"subscription_id"`
 }
 
-// CancelSubscription cancels a user's Stripe subscription.
+// CancelSubscription cancels a user's Stripe subscription at period end.
 func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 	var req CancelSubscriptionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -42,43 +44,50 @@ func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.Logger.Info("Subscription found in Stripe", zap.String("subscription_id", stripeSub.ID))
 
-	// Cancel in Stripe
-	canceledSub, err := subscription.Cancel(req.SubscriptionID, nil)
-	if err != nil {
-		utils.Logger.Error("Failed to cancel subscription", zap.Error(err))
-		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Failed to cancel subscription", nil)
-		return
-	}
-
-	// Lookup the user in our DB
-	var userID string
-	err = database.DB.QueryRow(
-		"SELECT user_id FROM Subscriptions WHERE stripe_subscription_id = $1",
+	// 1) Schedule cancellation at period end
+	updatedSub, err := subscription.Update(
 		req.SubscriptionID,
-	).Scan(&userID)
-	if err != nil {
-		utils.Logger.Error("Failed to get user ID from subscription", zap.Error(err))
-		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Could not find user for this subscription", nil)
-		return
-	}
-
-	// Mark user as non-premium
-	_, err = database.DB.Exec(
-		"UPDATE Users SET is_premium = FALSE WHERE id = $1",
-		userID,
+		&stripe.SubscriptionParams{
+			CancelAtPeriodEnd: stripe.Bool(true),
+		},
 	)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			utils.Logger.Warn("Subscription ID not found in database", zap.String("subscription_id", req.SubscriptionID))
-			utils.WriteStandardResponse(w, http.StatusNotFound, "Subscription not found in database", nil)
-			return
-		}
-		utils.Logger.Error("Failed to update user status", zap.Error(err))
-		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Could not update user subscription status", nil)
+		utils.Logger.Error("Failed to schedule cancellation", zap.Error(err))
+		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Failed to schedule cancellation", nil)
 		return
 	}
 
-	// Success response
-	utils.Logger.Info("Subscription canceled successfully", zap.String("subscription_id", req.SubscriptionID))
-	utils.WriteStandardResponse(w, http.StatusOK, "Subscription cancelled successfully", canceledSub)
+	// 2) Persist the expiration_date in our DB
+	expiry := time.Unix(updatedSub.CurrentPeriodEnd, 0)
+	_, err = database.DB.Exec(
+		`UPDATE Subscriptions
+				SET expiration_date = $1
+			WHERE stripe_subscription_id = $2`,
+		expiry, req.SubscriptionID,
+	)
+	if err != nil {
+		utils.Logger.Error("Failed to update subscription expiry in DB", zap.Error(err))
+		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Could not update subscription expiry", nil)
+		return
+	}
+
+	// 3) Build response payload with clearer messaging
+	nextRenew := expiry.AddDate(0, 1, 0)
+	message := fmt.Sprintf(
+		"Your subscription has been cancelled. You remain active until %s. "+
+			"If you change your mind, you can renew on %s.",
+		expiry.Format("Jan 2, 2006"),
+		nextRenew.Format("Jan 2, 2006"),
+	)
+	payload := map[string]string{
+		"expiration_date": expiry.Format(time.RFC3339),
+		"next_renewal":    nextRenew.Format(time.RFC3339),
+		"message":         message,
+	}
+
+	utils.Logger.Info("Cancellation scheduled at period end",
+		zap.String("subscription_id", req.SubscriptionID),
+		zap.Time("expires_on", expiry),
+	)
+	utils.WriteStandardResponse(w, http.StatusOK, "Subscription cancellation scheduled", payload)
 }

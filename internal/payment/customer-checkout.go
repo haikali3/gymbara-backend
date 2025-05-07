@@ -1,3 +1,4 @@
+// internal/payment/customer-checkout.go
 package payment
 
 import (
@@ -31,7 +32,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 
 	if stripeKey == "" || priceID == "" || frontendURL == "" {
 		utils.Logger.Error("Missing required environment variables")
-		http.Error(w, "Missing Stripe config", http.StatusInternalServerError)
+		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Missing Stripe config", nil)
 		return
 	}
 
@@ -39,7 +40,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 
 	var req SubscriptionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		utils.WriteStandardResponse(w, http.StatusBadRequest, "Invalid request payload", nil)
 		return
 	}
 	req.Email = strings.ToLower(req.Email)
@@ -51,7 +52,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	err := database.DB.QueryRow("SELECT id, stripe_customer_id FROM Users WHERE email = $1", req.Email).Scan(&userID, &stripeCustomerID)
 	if err != nil && err.Error() != "sql: no rows in result set" {
 		utils.Logger.Error("DB error fetching user", zap.Error(err))
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Internal error", nil)
 		return
 	}
 
@@ -76,7 +77,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 		newCust, err := customer.New(custParams)
 		if err != nil {
 			utils.Logger.Error("Failed to create Stripe customer", zap.Error(err))
-			http.Error(w, "Failed to create Stripe customer", http.StatusInternalServerError)
+			utils.WriteStandardResponse(w, http.StatusInternalServerError, "Failed to create Stripe customer", nil)
 			return
 		}
 		customerID = newCust.ID
@@ -101,7 +102,7 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 
 		if err == nil && existingSub != "" {
 			utils.Logger.Warn("User already has an active subscription", zap.Int("user_id", userID))
-			http.Error(w, "You already have an active subscription", http.StatusBadRequest)
+			utils.WriteStandardResponse(w, http.StatusBadRequest, "You already have an active subscription", nil)
 			return
 		}
 	}
@@ -124,14 +125,9 @@ func CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	s, err := session.New(params)
 	if err != nil {
 		utils.Logger.Error("Failed to create Stripe checkout session", zap.Error(err))
-		http.Error(w, "Could not create checkout session: Stripe customer ID might already exist or be invalid", http.StatusInternalServerError)
+		utils.WriteStandardResponse(w, http.StatusInternalServerError, "Could not create checkout session", nil)
 		return
 	}
 
-	resp := map[string]string{"url": s.URL}
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		utils.Logger.Error("Failed to return session URL", zap.Error(err))
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	utils.WriteStandardResponse(w, http.StatusOK, "Checkout session created", map[string]string{"url": s.URL})
 }

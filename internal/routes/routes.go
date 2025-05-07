@@ -73,6 +73,7 @@ func RegisterRoutes() {
 	http.Handle("/payment/verify-session", middleware.CORS(http.HandlerFunc(payment.VerifyCheckoutSession)))
 	http.Handle("/payment/cancel-subscription", secureHandler(payment.CancelSubscription))
 	http.Handle("/payment/get-subscription", secureHandler(payment.GetSubscription))
+	http.Handle("/payment/renew-subscription", secureHandler(payment.RenewSubscription))
 
 	// Webhook
 	http.Handle("/webhook/stripe", http.HandlerFunc(webhook.CheckoutSessionCompleted))
