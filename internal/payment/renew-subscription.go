@@ -29,6 +29,12 @@ type RenewSubscriptionResponse struct {
 
 // RenewSubscription either resumes a pending cancel or starts a fresh sub.
 func RenewSubscription(w http.ResponseWriter, r *http.Request) {
+	// POST request only
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// ✅ Extract email from AuthMiddleware context
 	email, ok := r.Context().Value(middleware.UserEmailKey).(string)
 	if !ok || email == "" {
