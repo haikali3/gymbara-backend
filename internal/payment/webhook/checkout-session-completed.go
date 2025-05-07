@@ -2,6 +2,7 @@
 package webhook
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,162 +12,204 @@ import (
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"github.com/stripe/stripe-go/v81"
+	"github.com/stripe/stripe-go/v81/subscription"
 	"github.com/stripe/stripe-go/v81/webhook"
 	"go.uber.org/zap"
 )
 
 func CheckoutSessionCompleted(w http.ResponseWriter, r *http.Request) {
-	const MaxBodyBytes = int64(65536)
+	// 1) Panic guard
+	defer func() {
+		if rec := recover(); rec != nil {
+			utils.Logger.Error("panic in webhook handler", zap.Any("panic", rec))
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+		}
+	}()
+
+	// 2) Limit payload size
+	const MaxBodyBytes = 64 << 10
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+
+	// 3) Read & verify
 	payload, err := io.ReadAll(r.Body)
 	if err != nil {
 		utils.Logger.Error("Error reading request body", zap.Error(err))
 		http.Error(w, "Error reading request body", http.StatusServiceUnavailable)
 		return
 	}
-
-	endpointSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
-	signHeader := r.Header.Get("Stripe-Signature")
-	event, err := webhook.ConstructEvent(payload, signHeader, endpointSecret)
+	event, err := webhook.ConstructEvent(
+		payload,
+		r.Header.Get("Stripe-Signature"),
+		os.Getenv("STRIPE_WEBHOOK_SECRET"),
+	)
 	if err != nil {
-		utils.Logger.Error("Webhook signature verification failed", zap.Error(err))
-		http.Error(w, "Webhook signature verification failed", http.StatusBadRequest)
+		utils.Logger.Error("Invalid webhook signature", zap.Error(err))
+		http.Error(w, "Invalid webhook signature", http.StatusBadRequest)
 		return
 	}
 
-	if event.Type != "checkout.session.completed" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+	// 4) Acknowledge immediately
+	w.WriteHeader(http.StatusOK)
 
-	var session stripe.CheckoutSession
-	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
-		utils.Logger.Error("Error parsing webhook JSON", zap.Error(err))
-		http.Error(w, "Error parsing webhook JSON", http.StatusBadRequest)
-		return
-	}
+	// 5) Process in background
+	go func() {
+		if event.Type != "checkout.session.completed" && event.Type != "invoice.payment_succeeded" {
+			return
+		}
 
-	// ✅ Ensure we have a valid Stripe Customer ID
-	stripeCustomerID := session.Customer.ID
-	if stripeCustomerID == "" && session.Metadata != nil {
-		stripeCustomerID = session.Metadata["customer_id"]
-	}
-	if stripeCustomerID == "" {
-		utils.Logger.Error("Stripe customer ID is missing", zap.Any("session", session))
-		http.Error(w, "Stripe customer ID is missing", http.StatusBadRequest)
-		return
-	}
+		var (
+			rawEmail string
+			subID    string
+			ts       int64
+		)
 
-	// ✅ Ensure we have a valid Subscription ID
-	var stripeSubscriptionID string
-	if session.Subscription != nil {
-		stripeSubscriptionID = session.Subscription.ID
-	} else {
-		utils.Logger.Error("Subscription data is nil", zap.Any("session", session))
-		http.Error(w, "Subscription ID is missing", http.StatusBadRequest)
-		return
-	}
-
-	// ✅ Ensure we have a valid Email
-	var email string
-	if session.CustomerDetails != nil {
-		email = session.CustomerDetails.Email
-	}
-	if email == "" && session.Metadata != nil {
-		email = session.Metadata["email"]
-	}
-	if email == "" {
-		utils.Logger.Error("Email not found in session", zap.Any("session", session))
-		http.Error(w, "Email not provided", http.StatusBadRequest)
-		return
-	}
-
-	// ✅ Ensure user exists and update stripe_customer_id if necessary
-	var userID int
-	var existingStripeCustomerID *string
-
-	err = database.DB.QueryRow("SELECT id, stripe_customer_id FROM Users WHERE email = $1", email).Scan(&userID, &existingStripeCustomerID)
-
-	if err == nil {
-		// ✅ User exists, update stripe_customer_id if missing
-		if existingStripeCustomerID == nil || *existingStripeCustomerID == "" {
-			_, err = database.DB.Exec("UPDATE Users SET stripe_customer_id = $1 WHERE id = $2", stripeCustomerID, userID)
-			if err != nil {
-				utils.Logger.Error("Failed to update stripe_customer_id", zap.Error(err))
-				http.Error(w, "Failed to update user", http.StatusInternalServerError)
+		switch event.Type {
+		case "checkout.session.completed":
+			var sess stripe.CheckoutSession
+			if err := json.Unmarshal(event.Data.Raw, &sess); err != nil {
+				utils.Logger.Error("parse session failed", zap.Error(err))
 				return
 			}
-			utils.Logger.Info("Updated stripe_customer_id for existing user", zap.Int("userID", userID))
+			ts = sess.Created
+
+			// ─────── Fallback for Subscription ID ───────
+			if sess.Subscription != nil {
+				subID = sess.Subscription.ID
+			}
+			if subID == "" && sess.Subscription != nil {
+				subID = sess.Subscription.ID
+			}
+
+			// ─────── Fallback for Email ───────
+			rawEmail = sess.CustomerEmail
+			if rawEmail == "" && sess.CustomerDetails != nil {
+				rawEmail = sess.CustomerDetails.Email
+			}
+			if rawEmail == "" && sess.Metadata != nil {
+				rawEmail = sess.Metadata["email"]
+			}
+
+		case "invoice.payment_succeeded":
+			var inv stripe.Invoice
+			if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
+				utils.Logger.Error("parse invoice failed", zap.Error(err))
+				return
+			}
+			ts = inv.Created
+			subID = inv.Subscription.ID
+			rawEmail = inv.CustomerEmail
 		}
-		// ✅ Always set is_premium = TRUE for existing user
-		_, err = database.DB.Exec("UPDATE Users SET is_premium = TRUE WHERE id = $1", userID)
-		if err != nil {
-			utils.Logger.Error("Failed to update is_premium for existing user", zap.Error(err))
-			http.Error(w, "Failed to update user", http.StatusInternalServerError)
+
+		// 🌟 Debug log: show what we actually got
+		utils.Logger.Info("Webhook data",
+			zap.String("event_type", string(event.Type)),
+			zap.String("subID", subID),
+			zap.String("email", rawEmail),
+		)
+
+		// guard against missing data
+		if subID == "" || rawEmail == "" {
+			utils.Logger.Error("missing data; skipping upsert",
+				zap.String("subID", subID),
+				zap.String("email", rawEmail),
+			)
 			return
 		}
-		utils.Logger.Info("Marked existing user as premium", zap.Int("userID", userID))
 
-	} else if err.Error() == "sql: no rows in result set" {
-		// ✅ User not found, create a new one
-		err = database.DB.QueryRow(
-			"INSERT INTO Users (email, stripe_customer_id, is_premium) VALUES ($1, $2, TRUE) RETURNING id",
-			email, stripeCustomerID,
-		).Scan(&userID)
+		handleByEmail(subID, rawEmail, ts)
+	}()
+}
 
-		if err != nil {
-			utils.Logger.Error("Failed to create new user", zap.Error(err))
-			http.Error(w, "User creation failed", http.StatusInternalServerError)
-			return
-		}
-		utils.Logger.Info("Created new user with stripe_customer_id", zap.String("email", email), zap.Int("userID", userID))
-	} else {
-		// 🚨 Handle unexpected DB errors
-		utils.Logger.Error("Database query failed", zap.Error(err))
-		http.Error(w, "Database error", http.StatusInternalServerError)
+// handleByEmail upserts User (by email) and Subscription rows.
+func handleByEmail(subID, email string, ts int64) {
+	if email == "" {
+		utils.Logger.Error("Missing customer email; skipping", zap.String("subID", subID))
 		return
 	}
 
-	// ✅ Ensure subscription exists
-	var existingSubscriptionID string
-	err = database.DB.QueryRow("SELECT stripe_subscription_id FROM Subscriptions WHERE user_id = $1", userID).Scan(&existingSubscriptionID)
+	// fetch real billing period end
+	sub, err := subscription.Get(subID, nil)
+	if err != nil {
+		utils.Logger.Error("Stripe subscription lookup failed", zap.Error(err))
+		return
+	}
+	expiration := time.Unix(sub.CurrentPeriodEnd, 0)
 
-	paidDate := time.Now()
-	expirationDate := paidDate.AddDate(0, 1, 0)
+	// begin transaction
+	tx, err := database.DB.Begin()
+	if err != nil {
+		utils.Logger.Error("DB tx begin failed", zap.Error(err))
+		return
+	}
+	defer tx.Rollback()
 
-	// ✅ If subscription exists, update it
-	if err == nil {
-		_, err = database.DB.Exec(
-			"UPDATE Subscriptions SET paid_date = $1, expiration_date = $2, stripe_subscription_id = $3 WHERE user_id = $4",
-			paidDate, expirationDate, stripeSubscriptionID, userID,
-		)
-		if err != nil {
-			utils.Logger.Error("Failed to update existing subscription", zap.Error(err))
-			http.Error(w, "Failed to update subscription", http.StatusInternalServerError)
+	// upsert user (same as before)…
+	var userID int
+	if err := tx.QueryRow("SELECT id FROM Users WHERE email=$1", email).Scan(&userID); err != nil {
+		// insert new user
+		if err := tx.QueryRow(
+			"INSERT INTO Users (email, is_premium) VALUES ($1, TRUE) RETURNING id",
+			email,
+		).Scan(&userID); err != nil {
+			utils.Logger.Error("Failed to create user", zap.Error(err))
 			return
 		}
-		utils.Logger.Info("Updated existing subscription", zap.Int("userID", userID), zap.String("stripeSubscriptionID", stripeSubscriptionID))
 	} else {
-		// ✅ If no subscription exists, create a new one
-		_, err = database.DB.Exec(
-			"INSERT INTO Subscriptions (user_id, paid_date, expiration_date, stripe_subscription_id) VALUES ($1, $2, $3, $4)",
-			userID, paidDate, expirationDate, stripeSubscriptionID,
-		)
-		if err != nil {
-			utils.Logger.Error("Failed to insert subscription record", zap.Error(err))
-			http.Error(w, "Failed to record subscription", http.StatusInternalServerError)
+		// mark existing premium
+		if _, err := tx.Exec("UPDATE Users SET is_premium=TRUE WHERE id=$1", userID); err != nil {
+			utils.Logger.Error("Failed to mark user premium", zap.Error(err))
 			return
 		}
-		utils.Logger.Info("Inserted new subscription", zap.Int("userID", userID), zap.String("stripeSubscriptionID", stripeSubscriptionID))
 	}
 
-	// ✅ Debugging Log: Check if `stripe_customer_id` was stored properly
-	var testStripeCustomerID string
-	if err := database.DB.QueryRow("SELECT stripe_customer_id FROM Users WHERE id = $1", userID).Scan(&testStripeCustomerID); err != nil {
-		utils.Logger.Error("Failed to verify stripe_customer_id in database", zap.Error(err))
+	// ───── plain INSERT/UPDATE for Subscriptions ─────
+	var existingSubID string
+	err = tx.QueryRow(
+		`SELECT stripe_subscription_id
+				FROM Subscriptions
+			WHERE user_id = $1`,
+		userID,
+	).Scan(&existingSubID)
+
+	if err == sql.ErrNoRows {
+		// no row yet → INSERT
+		if _, err := tx.Exec(
+			`INSERT INTO Subscriptions
+					(user_id, paid_date, expiration_date, stripe_subscription_id)
+				VALUES ($1, $2, $3, $4)`,
+			userID, time.Unix(ts, 0), expiration, subID,
+		); err != nil {
+			utils.Logger.Error("Failed to insert subscription", zap.Error(err))
+			return
+		}
+	} else if err == nil {
+		// row exists → UPDATE
+		if _, err := tx.Exec(
+			`UPDATE Subscriptions
+							SET paid_date = $1,
+									expiration_date = $2,
+									stripe_subscription_id = $3
+						WHERE user_id = $4`,
+			time.Unix(ts, 0), expiration, subID, userID,
+		); err != nil {
+			utils.Logger.Error("Failed to update subscription", zap.Error(err))
+			return
+		}
 	} else {
-		utils.Logger.Info("Database check - stripe_customer_id after update", zap.String("stripe_customer_id", testStripeCustomerID))
+		// unexpected DB error
+		utils.Logger.Error("Failed to query subscription", zap.Error(err))
+		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	// commit
+	if err := tx.Commit(); err != nil {
+		utils.Logger.Error("DB commit failed", zap.Error(err))
+		return
+	}
+
+	utils.Logger.Info("Upserted subscription by email",
+		zap.String("email", email),
+		zap.String("subID", subID),
+		zap.Time("expires", expiration),
+	)
 }
