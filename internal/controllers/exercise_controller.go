@@ -4,6 +4,7 @@ package controllers
 import (
 	"database/sql"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -145,7 +146,11 @@ func GetExerciseGuide(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	exID := parts[2]
+	exID, err := strconv.Atoi(parts[2])
+	if err != nil {
+		utils.HandleError(w, "Invalid exercise ID format", http.StatusBadRequest, err)
+		return
+	}
 
 	// Example: fetch two subs as part of the guide
 	row := database.DB.QueryRow(`
