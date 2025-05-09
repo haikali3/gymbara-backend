@@ -1,7 +1,10 @@
+// internal/controllers/exercise_controller.go
 package controllers
 
 import (
+	"database/sql"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
@@ -9,6 +12,14 @@ import (
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"go.uber.org/zap"
 )
+
+// ExerciseGuideDTO is the shape we return to clients
+type ExerciseGuideDTO struct {
+	ID            int      `json:"id"`
+	Name          string   `json:"name"`
+	Notes         string   `json:"notes"`
+	Substitutions []string `json:"substitutions"`
+}
 
 // Get exercises for initial load
 func GetExercisesList(w http.ResponseWriter, r *http.Request) {
@@ -118,4 +129,74 @@ func GetExerciseDetails(w http.ResponseWriter, r *http.Request) {
 	workoutCache.Set(cacheKey, exerciseDetails, 3*time.Hour)
 
 	utils.WriteStandardResponse(w, http.StatusOK, "Exercise details retrieved successfully", exerciseDetails)
+}
+
+// GET /workout-sections/exercises/42/guide
+func GetExerciseGuide(w http.ResponseWriter, r *http.Request) {
+	// e.g. "/workout-sections/exercises/42/guide"
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+
+	// Expect exactly 4 segments:
+	// ["workout-sections", "exercises", "<id>", "guide"]
+	if len(parts) != 4 ||
+		parts[0] != "workout-sections" ||
+		parts[1] != "exercises" ||
+		parts[3] != "guide" {
+		http.NotFound(w, r)
+		return
+	}
+	exID := parts[2]
+
+	// Example: fetch two subs as part of the guide
+	row := database.DB.QueryRow(`
+        SELECT
+					id, 
+					name, 
+					substitution_1, 
+					substitution_2, 
+					notes
+        FROM Exercises
+        WHERE id = $1;
+    `, exID)
+
+	var (
+		id    int
+		name  string
+		sub1  sql.NullString
+		sub2  sql.NullString
+		notes sql.NullString
+	)
+	if err := row.Scan(&id, &name, &sub1, &sub2, &notes); err != nil {
+		if err == sql.ErrNoRows {
+			utils.HandleError(w, "Exercise not found", http.StatusNotFound, err)
+		} else {
+			utils.HandleError(w, "Error querying exercise guide", http.StatusInternalServerError, err)
+		}
+		return
+	}
+
+	// Build whatever “guide” payload you need—here we just wrap the two substitutions
+	subs := []string{}
+
+	if sub1.Valid && sub1.String != "" {
+		subs = append(subs, sub1.String)
+	}
+	if sub2.Valid && sub2.String != "" {
+		subs = append(subs, sub2.String)
+	}
+
+	// Assemble the DTO
+	dto := ExerciseGuideDTO{
+		ID:            id,
+		Name:          name,
+		Notes:         notes.String, // empty string if null
+		Substitutions: subs,
+	}
+
+	utils.Logger.Info("Fetched exercise guide",
+		zap.Int("exercise_id", id),
+		zap.Any("guide", dto),
+	)
+	utils.WriteStandardResponse(w, http.StatusOK, "Exercise guide retrieved", dto)
+
 }
