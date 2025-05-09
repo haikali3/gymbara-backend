@@ -58,6 +58,8 @@ func RegisterRoutes() {
 
 	//frontend fetch from this to display list of exercises
 	http.Handle("/workout-sections/exercises", secureHandler(middleware.RequireSubscription(controllers.GetWorkoutSectionsWithExercises)))
+	// exercise guide by id
+	http.Handle("/workout-sections/exercises/", secureHandler(middleware.RequireSubscription(controllers.GetExerciseGuide)))
 
 	// User submit exercise details
 	http.Handle("/workout-sections/user-exercise-details", secureHandler(controllers.SubmitUserExerciseDetails))
