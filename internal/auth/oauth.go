@@ -148,6 +148,8 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 // TODO: create refresh token
 func RefreshAccessToken(refreshToken string) (*oauth2.Token, error) {
+	ensureConfig()
+
 	token := &oauth2.Token{
 		RefreshToken: refreshToken,
 		Expiry:       time.Now().Add(-time.Hour), //force token to expired
@@ -277,4 +279,12 @@ func validateOAuthState(r *http.Request) bool {
 // Helper function to get frontend URL from environment variables
 func getFrontendURL() string {
 	return os.Getenv("FRONTEND_URL")
+}
+
+func ensureConfig() {
+	if GoogleOauthConfig == nil {
+		if err := InitializeOAuthConfig(); err != nil {
+			utils.Logger.Fatal("Failed to init OAuth config", zap.Error(err))
+		}
+	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/haikali3/gymbara-backend/config"
+	"github.com/haikali3/gymbara-backend/internal/auth"
 	"github.com/haikali3/gymbara-backend/internal/database"
 	"github.com/haikali3/gymbara-backend/internal/routes"
 	"github.com/haikali3/gymbara-backend/pkg/cache"
@@ -76,6 +77,11 @@ func main() {
 	}
 
 	loadEnv()
+
+	// ⚙️ Initialize Google OAuth BEFORE you register any handlers
+	if err := auth.InitializeOAuthConfig(); err != nil {
+		utils.Logger.Fatal("Failed to init OAuth config", zap.Error(err))
+	}
 
 	cfg := config.LoadConfig()
 
