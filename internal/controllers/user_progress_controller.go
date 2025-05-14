@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
@@ -22,6 +23,28 @@ func GetUserProgress(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		utils.HandleError(w, "Invalid User ID", http.StatusUnauthorized, nil)
 		return
+	}
+
+	// Validate query parameters
+	if startDate := r.URL.Query().Get("start_date"); startDate != "" {
+		if _, err := time.Parse("2006-01-02", startDate); err != nil {
+			utils.HandleError(w, "Invalid start_date format. Use YYYY-MM-DD", http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	if endDate := r.URL.Query().Get("end_date"); endDate != "" {
+		if _, err := time.Parse("2006-01-02", endDate); err != nil {
+			utils.HandleError(w, "Invalid end_date format. Use YYYY-MM-DD", http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err != nil || limit < 1 || limit > 100 {
+			utils.HandleError(w, "Invalid limit. Must be between 1-100", http.StatusBadRequest, err)
+			return
+		}
 	}
 
 	rows, err := database.StmtGetUserProgress.Query(userID)
