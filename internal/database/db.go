@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/haikali3/gymbara-backend/config"
 	"github.com/haikali3/gymbara-backend/pkg/models"
@@ -26,9 +25,18 @@ func Connect(cfg *config.Config) {
 		utils.Logger.Fatal("Failed to connect to database:", zap.String("error", err.Error()))
 	}
 
-	DB.SetMaxOpenConns(25)
-	DB.SetMaxIdleConns(5)
-	DB.SetConnMaxLifetime(5 * time.Minute)
+	// Configure connection pool with values from config
+	DB.SetMaxOpenConns(cfg.DBMaxOpenConns)
+	DB.SetMaxIdleConns(cfg.DBMaxIdleConns)
+	DB.SetConnMaxLifetime(cfg.DBConnMaxLifetime)
+	DB.SetConnMaxIdleTime(cfg.DBConnMaxIdleTime)
+
+	utils.Logger.Info("Database connection pool configured",
+		zap.Int("maxOpenConns", cfg.DBMaxOpenConns),
+		zap.Int("maxIdleConns", cfg.DBMaxIdleConns),
+		zap.Duration("connMaxLifetime", cfg.DBConnMaxLifetime),
+		zap.Duration("connMaxIdleTime", cfg.DBConnMaxIdleTime),
+	)
 
 	//initialize prepared statement
 	PrepareStatements()
