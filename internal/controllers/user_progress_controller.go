@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/haikali3/gymbara-backend/internal/database"
@@ -9,6 +10,11 @@ import (
 	"github.com/haikali3/gymbara-backend/pkg/models"
 	"github.com/haikali3/gymbara-backend/pkg/utils"
 	"go.uber.org/zap"
+)
+
+const (
+	defaultLimit = 10
+	maxLimit     = 100
 )
 
 func GetUserProgress(w http.ResponseWriter, r *http.Request) {
@@ -24,6 +30,31 @@ func GetUserProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get and validate limit parameter
+	limitStr := r.URL.Query().Get("limit")
+	limit := defaultLimit
+
+	if limitStr != "" {
+		// First check if the string can be converted to an integer
+		parsedLimit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			utils.HandleError(w, "Invalid limit parameter: must be a number", http.StatusBadRequest, err)
+			return
+		}
+
+		// Then check if the value is within allowed range
+		if parsedLimit <= 0 {
+			utils.HandleError(w, "Invalid limit parameter: must be greater than 0", http.StatusBadRequest, nil)
+			return
+		}
+		if parsedLimit > maxLimit {
+			utils.HandleError(w, "Invalid limit parameter: exceeds maximum allowed value", http.StatusBadRequest, nil)
+			return
+		}
+
+		limit = parsedLimit
+	}
+
 	rows, err := database.StmtGetUserProgress.Query(userID)
 	if err != nil {
 		utils.HandleError(w, "Unable to retrieve user progress", http.StatusInternalServerError, err)
@@ -36,7 +67,12 @@ func GetUserProgress(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	var progressData []models.UserProgressResponse
+	count := 0
 	for rows.Next() {
+		if count >= limit {
+			break
+		}
+
 		var exerciseID, customReps int
 		var exerciseName string
 		var customLoad float64
@@ -55,8 +91,12 @@ func GetUserProgress(w http.ResponseWriter, r *http.Request) {
 			CustomReps:   customReps,
 			SubmittedAt:  submittedAt.Format("2006-01-02"),
 		})
+		count++
 	}
 
-	utils.Logger.Info("User progress retrieved successfully", zap.Int("user_id", userID), zap.Int("records", len(progressData)))
+	utils.Logger.Info("User progress retrieved successfully",
+		zap.Int("user_id", userID),
+		zap.Int("records", len(progressData)),
+		zap.Int("limit", limit))
 	utils.WriteStandardResponse(w, http.StatusOK, "User progress retrieved successfully", progressData)
 }
