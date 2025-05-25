@@ -1,5 +1,12 @@
 # Variables
-DB_URL := postgres://postgres:postgres@localhost:5432/gymbara?sslmode=disable
+# DB_URL := postgres://postgres:postgres@localhost:5432/gymbara?sslmode=disable
+DB_USER ?= youruser
+DB_PASSWORD ?= yourpassword
+DB_HOST ?= localhost
+DB_PORT ?= 5432
+DB_NAME ?= gymbara
+DB_URL ?= postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
+
 APP_NAME := gymbara-backend
 
 # Run the app in development
@@ -75,16 +82,16 @@ seed-down-to:
 
 seed-reset:
 	@echo "🧹 wiping out data & schemas…"
-	psql postgres://postgres:postgres@localhost:5432/gymbara \
+	psql $(DB_URL) \
 	  -c "DELETE FROM exercisedetails; DELETE FROM exercises; DELETE FROM workoutsections;"
-	psql postgres://postgres:postgres@localhost:5432/gymbara \
+	psql $(DB_URL) \
 	  -c "ALTER SEQUENCE exercisedetails_id_seq RESTART WITH 1; ALTER SEQUENCE exercises_id_seq RESTART WITH 1; ALTER SEQUENCE workoutsections_id_seq RESTART WITH 1;"
-	psql postgres://postgres:postgres@localhost:5432/gymbara \
+	psql $(DB_URL) \
 	  -c "TRUNCATE TABLE goose_seed_version;"
 	@echo "🚀 re-seeding from zero…"
 	goose -dir internal/database/seeds \
 	  -table goose_seed_version \
-	  postgres "postgres://postgres:postgres@localhost:5432/gymbara?sslmode=disable" up
+	  postgres "$(DB_URL)" up
 
 
 # Migrations and Seed
@@ -94,10 +101,10 @@ migrate-and-seed: migrate-up
 
 # reset gymbara DB
 reset-db:
-	@echo "👉 Dropping gymbara DB…"
-	dropdb --if-exists gymbara
-	@echo "👉 Recreating gymbara DB…"
-	createdb gymbara
+	@echo "👉 Dropping $(DB_NAME) DB…"
+	dropdb --if-exists $(DB_NAME)
+	@echo "👉 Recreating $(DB_NAME) DB…"
+	createdb $(DB_NAME)
 
 # Lint code
 lint:
