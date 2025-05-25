@@ -230,6 +230,36 @@ CREATE USER youruser WITH PASSWORD 'yourpassword';
 GRANT ALL PRIVILEGES ON DATABASE gymbara TO youruser;
 ```
 
+3. Set up database environment variables:
+
+You can set these variables in your `.env` file or export them in your shell:
+
+```bash
+# Database configuration
+DB_USER=youruser
+DB_PASSWORD=yourpassword
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=gymbara
+```
+
+Or export them directly in your shell:
+
+```bash
+export DB_USER=youruser
+export DB_PASSWORD=yourpassword
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=gymbara
+```
+
+The Makefile will use these environment variables for all database operations. If not set, it will use the default values:
+- DB_USER: postgres
+- DB_PASSWORD: postgres
+- DB_HOST: localhost
+- DB_PORT: 5432
+- DB_NAME: gymbara
+
 ### 3. Schema Setup and Data Seeding
 
 The project uses Goose for database migrations and seeding. Follow these steps to set up your database:
