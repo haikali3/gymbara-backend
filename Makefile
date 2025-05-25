@@ -1,5 +1,7 @@
 # Variables
-DB_URL := postgres://postgres:postgres@localhost:5432/gymbara?sslmode=disable
+# DB_URL := postgres://postgres:postgres@localhost:5432/gymbara?sslmode=disable
+DB_URL := postgres://user:kalfdvcH9%40@localhost:5432/gymbara?sslmode=disable
+
 APP_NAME := gymbara-backend
 
 # Run the app in development

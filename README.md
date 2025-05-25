@@ -230,63 +230,44 @@ CREATE USER youruser WITH PASSWORD 'yourpassword';
 GRANT ALL PRIVILEGES ON DATABASE gymbara TO youruser;
 ```
 
-### 3. Schema Setup
+### 3. Schema Setup and Data Seeding
 
-Run the following SQL scripts:
+The project uses Goose for database migrations and seeding. Follow these steps to set up your database:
 
-```sql
--- 1. Create the Sections table
-CREATE TABLE WorkoutSections (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL
-);
-
--- 2. Create the Exercises table
-CREATE TABLE Exercises (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    workoutsection_id INT REFERENCES WorkoutSections(id) ON DELETE CASCADE,
-    notes TEXT,
-    substitution_1 VARCHAR(100),
-    substitution_2 VARCHAR(100)
-);
-
--- 3. Create the ExerciseDetails table
-CREATE TABLE ExerciseDetails (
-    id SERIAL PRIMARY KEY,
-    exercise_id INT REFERENCES Exercises(id) ON DELETE CASCADE,
-    week_start INT NOT NULL,
-    week_end INT NOT NULL,
-    warmup_sets INT,
-    working_sets INT,
-    reps VARCHAR(20),
-    load INT,
-    rpe INT,
-    rest_time VARCHAR(20)
-);
-
--- 4. Create the Instructions table
-CREATE TABLE Instructions (
-    id SERIAL PRIMARY KEY,
-    exercise_id INT REFERENCES Exercises(id) ON DELETE CASCADE,
-    instruction TEXT NOT NULL
-);
+1. Run migrations to create the schema:
+```bash
+make migrate-up
 ```
 
-### 4. Sample Data
-
-```sql
--- Insert workout sections
-INSERT INTO WorkoutSections (name) VALUES
-('Full Body'),
-('Upper Body'),
-('Lower Body');
-
--- Insert exercises
-INSERT INTO Exercises (name, workoutsection_id, notes, substitution_1, substitution_2) VALUES
-('Incline Machine Press', 1, '45° incline, focus on squeezing chest', 'Incline Smith Machine Press', 'Incline DB Press'),
-('Single-Leg Leg Press (Heavy)', 1, 'High and wide foot positioning, start with weaker leg', 'Machine Squat', 'Hack Squat');
+2. Seed the database with initial data:
+```bash
+make seed-up
 ```
+
+3. If you need to reset everything and start fresh:
+```bash
+make reset-db    # Drops and recreates the database
+make migrate-up  # Creates the schema
+make seed-up     # Seeds the data
+```
+
+4. To check the status of migrations and seeds:
+```bash
+make migrate-status  # Check migration status
+make seed-status     # Check seed status
+```
+
+The migrations will create the following tables:
+- WorkoutSections
+- Exercises
+- ExerciseDetails
+- Instructions
+- and more...
+
+And the seeds will populate these tables with initial workout data including:
+- Workout sections (Full Body, Upper Body, Lower Body)
+- Sample exercises with their details
+- Exercise instructions and substitutions
 
 ## Deployment
 
