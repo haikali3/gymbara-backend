@@ -111,7 +111,33 @@ SERVER_PORT=8080
 5. Run the server:
 
 ```bash
-go run main.go
+# Run with live reload using Air (recommended for development)
+make run
+
+# OR run without live reload
+go run cmd/main.go
+```
+
+### Development with Air (Live Reload)
+
+The project uses Air for live reload during development. The `make run` command automatically uses Air to watch for file changes and restart the server.
+
+If you want to use Air directly:
+
+1. Install Air:
+```bash
+go install github.com/cosmtrek/air@latest
+```
+
+2. For less typing, add this alias to your shell configuration:
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+alias air='~/.air'
+```
+
+3. Run the server with Air:
+```bash
+air
 ```
 
 ## Database Setup
