@@ -74,7 +74,21 @@ This backend service provides APIs for:
 - Go 1.18+
 - PostgreSQL 12+
 - [godotenv](https://github.com/joho/godotenv)
-- [goose](https://github.com/pressly/goose) (optional, for migrations)
+- [goose](https://github.com/pressly/goose) (for database migrations)
+
+### Installing Goose CLI
+
+To install the latest version of Goose CLI:
+
+```bash
+# Install Goose CLI
+go install github.com/pressly/goose/v3/cmd/goose@latest
+
+# Verify installation
+goose -version
+```
+
+If you encounter any issues with the installation, please refer to the [official Goose documentation](https://github.com/pressly/goose).
 
 ## Local Development Setup
 
