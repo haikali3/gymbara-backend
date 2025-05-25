@@ -7,8 +7,11 @@ go 1.23
 require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
+	github.com/stripe/stripe-go/v81 v81.3.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/oauth2 v0.24.0
+	google.golang.org/grpc v1.70.0
+	google.golang.org/protobuf v1.36.4
 )
 
 require (

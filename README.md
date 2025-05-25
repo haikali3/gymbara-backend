@@ -118,6 +118,62 @@ go run main.go
 
 ### 1. PostgreSQL Installation
 
+#### Option 1: Docker Installation
+
+Before running PostgreSQL with Docker, you need to have either Colima, Docker Desktop, or Podman installed:
+
+##### For macOS:
+```bash
+# Install Colima (recommended for macOS)
+# Documentation: https://github.com/abiosoft/colima
+brew install colima
+colima start
+# Check if Colima is running
+colima status
+# Stop Colima
+colima stop
+
+
+# OR install Docker Desktop
+# Documentation: https://docs.docker.com/desktop/install/mac-install/
+brew install --cask docker
+
+# OR install Podman
+# Documentation: https://podman.io/getting-started/installation
+brew install podman
+podman machine init
+podman machine start
+```
+
+After installing either Colima, Docker Desktop, or Podman, you can proceed with running PostgreSQL:
+
+```bash
+# Pull the PostgreSQL image
+# Documentation: https://hub.docker.com/_/postgres
+docker pull postgres:latest
+
+# Run PostgreSQL container
+docker run --name gymbara-postgres \
+    -e POSTGRES_USER=youruser \
+    -e POSTGRES_PASSWORD=yourpassword \
+    -e POSTGRES_DB=gymbara \
+    -p 5432:5432 \
+    -d postgres:latest
+```
+
+To stop and remove the container:
+```bash
+docker stop gymbara-postgres
+docker rm gymbara-postgres
+```
+
+To view logs:
+```bash
+docker logs gymbara-postgres
+```
+
+#### Option 2: Native Installation
+
 #### Ubuntu/Debian:
 
 ```bash
@@ -420,5 +476,3 @@ Check your Stripe dashboard to verify that the event was received and processed 
 ```bash
 stripe cancel subscription sub_123456
 ```
-
-TODO: stripe, user able to check status of subscription, cancel subscription, update subscription
